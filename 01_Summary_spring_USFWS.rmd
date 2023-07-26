@@ -1,0 +1,237 @@
+---
+title: "01_Summary_Spring Migration/USFWS"
+author: "Gen Perkins"
+date: "2023-06-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary of Spring Migration/USFWS
+
+```{r library, warning=FALSE, message=FALSE, include = FALSE}
+library(leaflet)
+library(RColorBrewer)
+library(dplyr)
+library(lubridate)
+library(sf)
+library(adehabitatHR)
+library(ggplot2)
+library(stringr)
+library(readxl)
+library(dplyr)
+library("rnaturalearth")
+library("rnaturalearthdata")
+
+
+raw_dat <- file.path("data", "movebank_locations_20230407")
+filesoi <- list.files(raw_dat)
+
+# data_set3 : spring migration 
+key = "Spring Migration"
+
+filesoi <- list.files(raw_dat, pattern = key)
+filesoi <- filesoi[2]
+btemp <- read.csv(file.path(raw_dat, filesoi))
+bout <- btemp %>%
+    dplyr::select(visible, timestamp, location.long, location.lat,
+                  gps.fix.type.raw, lotek.crc.status,
+                  sensor.type, individual.local.identifier,
+                  argos.lc, algorithm.marked.outlier,
+                  tag.local.identifier)
+
+
+# calculate time differences
+bout <- bout  %>%
+  mutate(date_time = ymd_hms(timestamp))%>%
+  mutate(year = year(date_time )) %>%
+  mutate(month = month(date_time ),
+         day = day(date_time),
+         hour = hour(date_time),
+         minute = minute(date_time))
+
+no.tags <- unique(bout$tag.local.identifier)
+no.ids <- unique(bout$individual.local.identifier)
+  
+
+ids <- bout %>%
+  dplyr::select(tag.local.identifier, individual.local.identifier) %>%
+  group_by(tag.local.identifier, individual.local.identifier)%>%
+  summarise(n = n())
+  
+
+ymin = min(range(bout$year))
+ymax = max(range(bout$year))
+```
+
+This dataset has `r length(no.tags)` tags (tag.local.identifier) and `r length(no.ids)` (individual.local.identifier). 
+
+
+Note some records are not matched to the same tag.identifier( but this is only a few records)
+
+```{r, echo = FALSE}
+knitr::kable(ids)
+
+```
+
+```{r, echo=FALSE}
+
+errors <- ggplot(bout, aes(year, fill = visible))+
+    geom_bar(position = "dodge")#+
+    #xlim(2021,2024)#+
+  #facet_wrap(~tag.local.identifier)
+
+clean <- bout %>%
+  filter(visible == "true")%>%
+  filter(!is.na(location.long)) %>%
+  filter(!is.na(location.lat)) 
+
+```
+
+
+# Raw data
+
+The number of records as of early June 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
+`r min(range(bout$year))` to `r max(range(bout$year))`. Some obvious date errors to correct.
+
+
+There seems to be lots of errors in this data set
+
+```{r}
+errors
+
+```
+
+
+
+
+
+If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = 0, A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
+
+The cleaned date range varies from 
+`r min(range(clean$year))` to `r max(range(clean$year))`.
+However the date range in the reference data was all tagged in 2021
+
+
+
+
+
+# Data Anomolies: GPS vs argos
+
+The data set seems to be split between gps and argos data records. 
+
+```{r, echo = FALSE, message=FALSE}
+tag_type <- clean %>%
+  dplyr::select(tag.local.identifier, sensor.type) %>%
+  group_by(tag.local.identifier, sensor.type)%>%
+  summarise(n = n())
+
+#tag_type
+
+tag_type_date <- clean %>%
+  dplyr::select(tag.local.identifier, sensor.type, year, month) %>%
+   group_by(tag.local.identifier, sensor.type, year,month)%>%
+  summarise(n = n())
+
+#tag_type_date
+
+
+p_alldat <- ggplot(clean, aes(year, fill = sensor.type))+
+  geom_bar(position = "dodge") 
+
+```
+
+This seems odd as raw data shows shift from gps Lotek tag to argos-dopler-shift? 
+
+```{r}
+p_alldat 
+```
+
+
+# Duration of Tag summary
+
+```{r, echo = FALSE}
+table_max <- clean %>% 
+  dplyr::filter(year < 2024) %>%
+  dplyr::select(tag.local.identifier, date_time) %>%
+ # group_by(tag.local.identifier)%>% 
+  slice_max(date_time, by = tag.local.identifier)
+colnames(table_max)<- c("tag.local.identifier", "max")
+
+table_min <- clean %>% 
+    dplyr::filter(year > 2020) %>%
+  dplyr::select(tag.local.identifier, date_time) %>%
+ # group_by(tag.local.identifier)%>% 
+  slice_min(date_time, by = tag.local.identifier)
+
+colnames(table_min)<- c("tag.local.identifier", "min")
+
+dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
+  distinct()
+
+#library(ggplot2)
+
+dur_plot <- ggplot(dur, aes(y=factor(tag.local.identifier))) +
+  geom_segment(aes(x=min, xend=max, y=factor(tag.local.identifier), yend=factor(tag.local.identifier)), size=2)+
+  xlab("Date") + ylab("Tag") 
+
+dur_plot
+
+```
+
+
+
+
+# Geographic distributon of tags
+
+```{r, echo=FALSE}
+rf_sf <- sf::st_as_sf(clean, coords = c("location.long","location.lat"), crs = 4326, agr = "constant")
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+#Americas <- world %>% dplyr::filter(continent == "North America")
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 1, colour = "dark blue") +
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-110, -30), ylim = c(-10, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
+
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 1, colour = "dark blue") +
+  facet_wrap(~tag.local.identifier)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-110, -30), ylim = c(-10, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
+
+
+# jpeg(file.path(out.plots,"rose_density.jpg"), width = 30, height = 30,units = "cm", res = 210)
+# # 2. Create the plot
+# global 
+```
+
+Questions? 
+
+- all ref data compiled 
+- large no of false values - this needs review (specifially years)
+- some tags have very short timing window
+- change from lotek to argos? is this a concern or just based on accuracy?
+
