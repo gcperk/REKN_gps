@@ -46,6 +46,15 @@ no.tags.ref <- unique(brep$tag.local.identifier)
 no.ids.ref <- unique(brep$animal.id)
 
 
+
+ids <- brep %>% 
+  dplyr::select(tag.local.identifier, animal.id) %>%
+  distinct()
+
+# based on the reference data there is 
+# 107 unique tag ids (numeric) and 77 unique animal ids *ie NBRI_233781_2022
+
+
 # read in track data
 
 btemp <- read.csv(file.path(raw_dat, filesoi))
@@ -72,9 +81,15 @@ no.ids <- unique(bout$individual.local.identifier)
 
 # which ids are missing tracking data? 
 
+# based on the tracks data there are 57 ids and animal tag nos. 
+# all tracks have a animal tag id (ie: )
 
 
+ids.track <- bout %>% 
+  dplyr::select(tag.local.identifier, individual.local.identifier) %>%
+  distinct()
 
+fullid <- full_join(ids, ids.track)
 
 
 ids <- bout %>%
@@ -87,9 +102,12 @@ ymin = min(range(bout$year))
 ymax = max(range(bout$year))
 ```
 
-This dataset has `r length(no.tags)` tags (tag.local.identifier) and `r length(no.ids)` (individual.local.identifier). 
+This dataset has some discrepancies within the reference data and the track data. The reference data show 107 tags (based on tag-id number ie. 204561). Of these I found deployment information on 78 tags, which also includes 16 tags which are duplicated in USFW study. Tracks for these 16 duplicated tags are within the atlantic tags track set. 
 
-Note some records are not matched to the same tag.identifier( but this is only a few records)
+A review of the track data shows records for `r length(no.tags)` tags (tag.local.identifier) and `r length(no.ids)` (individual.local.identifier). 
+
+This indicates that some tag ids listed in the reference data may not yet have been deployed (i.e 29 tags with no reference data and no deployment data)
+
 
 ```{r, echo = FALSE}
 knitr::kable(ids)
@@ -110,7 +128,8 @@ clean <- bout %>%
   filter(!is.na(location.lat)) %>%
   filter(year <2024)
   
-# 
+errors <- ggplot(clean, aes(year, fill = visible))+
+    geom_bar(position = "dodge")
 # errrors_tble <- bout %>%
 #   group_by(tag.local.identifier, year, visible) %>%
 #   summarise(count = n())
@@ -121,10 +140,10 @@ clean <- bout %>%
 
 # Raw data
 
-The number of records as of early June 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
-`r min(range(bout$year))` to `r max(range(bout$year))`. Some obvious date errors to correct.
+The number of records as of early June 2023 is `r length(clean$tag.local.identifier)`.  The raw date range varies from 
+`r min(range(clean$year))` to `r max(range(clean$year))`. Some obvious date errors were corrected.
 
-```{r}
+```{r, echp = FALSE}
 errors
 ```
 
@@ -163,27 +182,21 @@ p_alldat
 
 ```
 
+```{r, echo = FALSE}
 # linking the tags to reference data
 
+# read in reference data 
+brep <- read.csv(file.path(raw_dat, filesoi_ref))
+brep <- brep %>%
+  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.marker.id","animal.ring.id", "tag.serial.no"))%>%
+mutate(tag.local.identifier = tag.id)
 
-```{r}
 
-ref_dat <- read_excel(file.path("ReferenceData.xlsx")) %>%
-  dplyr::select(c(Subpop, `Original dataset`, "animal-id", "deployment-id", `Usable data set`, `reccomended use`)) %>%
-  mutate(animal.id = `animal-id`, 
-         deploy_id = `deployment-id`) %>%
-  dplyr::select(c(Subpop, `Original dataset`, animal.id,`Usable data set`,`reccomended use`))%>%
-  unique()
-
+alltrack <- clean %>% 
+  left_join(brep) %>% 
+  dplyr::select(-tag.id, -animal.id, - visible, -timestamp, -algorithm.marked.outlier)
 
 ```
-
-
-
-
-
-
-
 
 
 # Duration of Tag summary
@@ -198,17 +211,15 @@ ref_dat <- read_excel(file.path("ReferenceData.xlsx")) %>%
 # 
 # p_duration
 
+#alltrack
 
-
-table_max <- clean %>% 
-  dplyr::filter(year < 2024) %>%
+table_max <- alltrack %>% 
   dplyr::select(tag.local.identifier, date_time) %>%
  # group_by(tag.local.identifier)%>% 
   slice_max(date_time, by = tag.local.identifier)
 colnames(table_max)<- c("tag.local.identifier", "max")
 
-table_min <- clean %>% 
-    dplyr::filter(year >= 2020) %>%
+table_min <- alltrack %>% 
   dplyr::select(tag.local.identifier, date_time) %>%
  # group_by(tag.local.identifier)%>% 
   slice_min(date_time, by = tag.local.identifier)
@@ -216,17 +227,46 @@ table_min <- clean %>%
 colnames(table_min)<- c("tag.local.identifier", "min")
 
 dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
-  distinct()
+  distinct() %>%
+  dplyr::mutate(duration = max- min)%>%
+  mutate(dur_no = round(as.numeric(duration)/24,1))
+
+
+# table_max <- clean %>% 
+#   dplyr::filter(year < 2024) %>%
+#   dplyr::select(tag.local.identifier, date_time) %>%
+#  # group_by(tag.local.identifier)%>% 
+#   slice_max(date_time, by = tag.local.identifier)
+# colnames(table_max)<- c("tag.local.identifier", "max")
+# 
+# table_min <- clean %>% 
+#     dplyr::filter(year >= 2020) %>%
+#   dplyr::select(tag.local.identifier, date_time) %>%
+#  # group_by(tag.local.identifier)%>% 
+#   slice_min(date_time, by = tag.local.identifier)
+# 
+# colnames(table_min)<- c("tag.local.identifier", "min")
+# 
+# dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
+#   distinct()
 
 #library(ggplot2)
 
 dur_plot <- ggplot(dur, aes(y=factor(tag.local.identifier))) +
-  geom_segment(aes(x=min, xend=max, y=factor(tag.local.identifier), yend=factor(tag.local.identifier)), size=1)+
+  geom_segment(aes(x=min, xend=max, y=factor(tag.local.identifier),    yend=factor(tag.local.identifier)), size=1)+
   xlab("Date") + ylab("Tag") 
 
 dur_plot
-```
 
+
+
+dur_hist <- ggplot(dur, aes(dur_no))+
+  geom_histogram(binwidth = 2) +
+  xlab("duration (days)") 
+
+dur_hist
+
+```
 
 
 
@@ -263,8 +303,38 @@ global
 
 Questions/Notes 
 
-- still missing reference data for number of birds
-- review/remove records with stande years
-- change from lotek to argos? is this a concern or just based on accuracy?
+- many tags do not have tracks. All tracks have reference data, but many tags with reference data does not have tracks.  
+- this data set includes the duplicate tracks for the spring migration dataset 
+- Still to review the level of accuracy in more detail. 
+
+Appendices: 
+
+List of tags ids with no tracks or reference tags 
+
+```{r, echo = FALSE}
+
+norefnotrack = fullid %>%
+  filter(is.na(individual.local.identifier))%>%
+  filter(animal.id == "") %>% 
+  pull(tag.local.identifier)
+  
+norefnotrack
+# 30 
+
+```
 
 
+List of tags ids with no tracks
+
+```{r, echo = FALSE}
+
+refnotrack = fullid %>%
+  filter(is.na(individual.local.identifier))%>%
+  filter(animal.id != "") %>% 
+  pull(tag.local.identifier)
+  
+refnotrack
+#20   
+
+
+```
