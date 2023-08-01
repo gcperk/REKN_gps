@@ -26,14 +26,38 @@ library("rnaturalearth")
 library("rnaturalearthdata")
 
 
-raw_dat <- file.path("data", "movebank_locations_20230407")
+#raw_dat <- file.path("data", "movebank_locations_20230407")
+raw_dat <- file.path("data", "movebank_locations_20230724")
+
 filesoi <- list.files(raw_dat)
 
 # data_set3 : spring migration 
 key = "Spring Migration"
 
 filesoi <- list.files(raw_dat, pattern = key)
+
+filesoi_ref <- filesoi[1]
 filesoi <- filesoi[2]
+
+
+# read in reference data 
+brep <- read.csv(file.path(raw_dat, filesoi_ref))
+brep <- brep %>%
+  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id"))%>%
+mutate(tag.local.identifier = tag.id)
+
+no.tags.ref <- unique(brep$tag.local.identifier)
+no.ids.ref <- unique(brep$animal.id)
+
+
+# number of unique tags = no of ids 
+
+
+
+
+
+
+
 btemp <- read.csv(file.path(raw_dat, filesoi))
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
@@ -64,12 +88,13 @@ ids <- bout %>%
 
 ymin = min(range(bout$year))
 ymax = max(range(bout$year))
+
+
 ```
 
 This dataset has `r length(no.tags)` tags (tag.local.identifier) and `r length(no.ids)` (individual.local.identifier). 
 
-
-Note some records are not matched to the same tag.identifier( but this is only a few records)
+For the reference data there are`r length(no.tags.ref)` tags and `r length(no.ids.ref)` (individual.local.identifier). 
 
 ```{r, echo = FALSE}
 knitr::kable(ids)
@@ -86,7 +111,21 @@ errors <- ggplot(bout, aes(year, fill = visible))+
 clean <- bout %>%
   filter(visible == "true")%>%
   filter(!is.na(location.long)) %>%
-  filter(!is.na(location.lat)) 
+  filter(!is.na(location.lat))  %>%
+  filter(year <2024)
+
+
+length(clean$visible)
+
+#cleanargos <- clean %>% 
+#  dplyr::filter(argos.lc != "Z")%>%
+#  dplyr::filter(argos.lc != "A")%>% 
+#  dplyr::filter(argos.lc != "B")
+
+#length(cleanargos$visible)
+
+#clean = cleanargos
+
 
 ```
 
@@ -97,7 +136,10 @@ The number of records as of early June 2023 is `r length(bout$tag.local.identifi
 `r min(range(bout$year))` to `r max(range(bout$year))`. Some obvious date errors to correct.
 
 
-There seems to be lots of errors in this data set
+There seems to be lots of errors in this data set with accuracy. 
+
+
+
 
 ```{r}
 errors
@@ -112,15 +154,12 @@ If we remove all the algorithm marked outliers (lotek = error, argos accuracy va
 
 The cleaned date range varies from 
 `r min(range(clean$year))` to `r max(range(clean$year))`.
-However the date range in the reference data was all tagged in 2021
 
 
 
+# GPS vs argos
 
-
-# Data Anomolies: GPS vs argos
-
-The data set seems to be split between gps and argos data records. 
+The data split between gps and argos data records. 
 
 ```{r, echo = FALSE, message=FALSE}
 tag_type <- clean %>%
@@ -221,8 +260,6 @@ global <- ggplot(data = Americas) +
 
 global
 
-
-
 # jpeg(file.path(out.plots,"rose_density.jpg"), width = 30, height = 30,units = "cm", res = 210)
 # # 2. Create the plot
 # global 
@@ -230,8 +267,8 @@ global
 
 Questions? 
 
-- all ref data compiled 
-- large no of false values - this needs review (specifially years)
-- some tags have very short timing window
-- change from lotek to argos? is this a concern or just based on accuracy?
+- 15 tags with tracks and 16 tags in reference data set. This is due to low record number (ie only on record for 213840 and 213842), although see next comment. 
+- These tags are duplicated tracks in the Atlantic Shores dataset although they do not seem to be an exact match (ie: more records in atlantic tracks dataset for the same tags?) This requires a bit more digging to figure out what is missing. 
+
+
 
