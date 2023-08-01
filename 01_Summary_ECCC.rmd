@@ -26,14 +26,35 @@ library("rnaturalearth")
 library("rnaturalearthdata")
 
 
-raw_dat <- file.path("data", "movebank_locations_20230407")
+#raw_dat <- file.path("data", "movebank_locations_20230407")
+raw_dat <- file.path("data", "movebank_locations_20230724")
 filesoi <- list.files(raw_dat)
 
 # data_set3 : spring migration 
 key = "ECCC"
 
 filesoi <- list.files(raw_dat, pattern = key)
+filesoi_ref <- filesoi[1]
 filesoi <- filesoi[2]
+
+
+
+
+# read in reference data 
+brep <- read.csv(file.path(raw_dat, filesoi_ref))
+brep <- brep %>%
+  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id"))%>%
+mutate(tag.local.identifier = tag.id)
+
+no.tags.ref <- unique(brep$tag.local.identifier)
+no.ids.ref <- unique(brep$animal.id)
+
+# number of unique tags = no of ids 
+
+# 120 tag ids 
+# 71 names animal ids
+
+
 btemp <- read.csv(file.path(raw_dat, filesoi))
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
@@ -56,6 +77,8 @@ no.tags <- unique(bout$tag.local.identifier)
 no.ids <- unique(bout$individual.local.identifier)
   
 
+# 59 tracks and track names 
+
 ids <- bout %>%
   dplyr::select(tag.local.identifier, individual.local.identifier) %>%
   group_by(tag.local.identifier, individual.local.identifier)%>%
@@ -64,11 +87,18 @@ ids <- bout %>%
 
 ymin = min(range(bout$year))
 ymax = max(range(bout$year))
+
 ```
+
+
+This dataset has some discrepancies within the reference data and the track data. The reference data show 120 tag ids (based on tag-id number ie. 204561) + two individuals with no animal.ids. 
+Of these I found deployment information on 71 animal individuals. The number of tracks was less. 
 
 This dataset has `r length(no.tags)` tags (tag.local.identifier) and `r length(no.ids)` (individual.local.identifier). 
 
-Note some records are not matched to the same tag.identifier( but this is only a few records)
+Note this may be a proportion of tags that are not yet deployed. See appendices. 
+
+Note some records are not matched to the same tag.identifier( but this is only two few records)
 
 ```{r, echo = FALSE}
 knitr::kable(ids)
@@ -87,7 +117,17 @@ clean <- bout %>%
   filter(visible == "true")%>%
   filter(!is.na(location.long)) %>%
   filter(!is.na(location.lat)) 
-  
+
+length(clean$visible)
+
+cleanargos <- clean%>% 
+  dplyr::filter(argos.lc != "Z")%>%
+  dplyr::filter(argos.lc != "A")%>% 
+ dplyr::filter(argos.lc != "B")
+
+length(cleanargos$visible)
+
+clean = cleanargos
 
 errrors_tble <- bout %>%
   group_by(tag.local.identifier, year, visible) %>%
@@ -99,30 +139,22 @@ errrors_tble <- bout %>%
 
 # Raw data
 
-The number of records as of early June 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
+The number of records as of July 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
 `r min(range(bout$year))` to `r max(range(bout$year))`. Some obvious date errors to correct.
 
-
-There seems to be a high proportion of flagged error records in 2023 
 
 ```{r}
 errors
 ```
-
-THis might require futher review. 
-
 
 If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = 0, A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
 The cleaned date range varies from 
 `r min(range(clean$year))` to `r max(range(clean$year))`.
 
 
+# GPS vs argos
 
-
-
-# Data Anomolies: GPS vs argos
-
-The data set seems to be split between gps and argos data records. 
+The data split between gps and argos data records. 
 
 ```{r, echo = FALSE, message=FALSE}
 tag_type <- clean %>%
@@ -160,7 +192,6 @@ p_alldat <- ggplot(clean, aes(tag.local.identifier))+ #, fill = sensor.type))+
 ```
 
 
-
 # Duration of Tag summary
 
 ```{r, echo = FALSE}
@@ -172,7 +203,6 @@ p_alldat <- ggplot(clean, aes(tag.local.identifier))+ #, fill = sensor.type))+
 #   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 # 
 # p_duration
-
 
 
 table_max <- clean %>% 
@@ -191,7 +221,9 @@ table_min <- clean %>%
 colnames(table_min)<- c("tag.local.identifier", "min")
 
 dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
-  distinct()
+  distinct() %>%
+  dplyr::mutate(duration = max- min)%>%
+  mutate(dur_no = round(as.numeric(duration),1))
 
 #library(ggplot2)
 
@@ -200,8 +232,22 @@ dur_plot <- ggplot(dur, aes(y=factor(tag.local.identifier))) +
   xlab("Date") + ylab("Tag") 
 
 dur_plot
+
+dur_hist <- ggplot(dur, aes(dur_no))+
+  geom_histogram() +
+  xlab("duration (days)") 
+
+dur_hist
+
+p_duration <- ggplot(clean, aes(factor(month), fill = factor(year)))+
+  geom_bar(position = "dodge") +
+  #xlim(1,12)+
+  facet_wrap(~tag.local.identifier)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
 ```
 
+Two individuals (232986 and 232985), This could be an error at least for 232985 where the large bulk are in 2022 (2474 records) and 33 records in july 2023?
 
 
 
@@ -238,9 +284,78 @@ global
 
 Questions/Notes 
 
-- check the high number of errors in the 2023 dataset
 - still missing reference data for number of birds
 - remove 2025 records
 - change from lotek to argos? is this a concern or just based on accuracy?
 - all ref data compiled
 
+```{r}
+
+ids <- brep %>% 
+  dplyr::select(tag.local.identifier, animal.id) %>%
+  distinct()
+
+# based on the reference data there is 
+# 107 unique tag ids (numeric) and 77 unique animal ids *ie NBRI_233781_2022
+
+# read in track data
+
+btemp <- read.csv(file.path(raw_dat, filesoi))
+bout <- btemp %>%
+    dplyr::select(visible, timestamp, location.long, location.lat,
+                  gps.fix.type.raw, lotek.crc.status,
+                  sensor.type, individual.local.identifier,
+                  argos.lc, algorithm.marked.outlier,
+                  tag.local.identifier)
+
+
+# calculate time differences
+bout <- bout %>%
+  mutate(date_time = ymd_hms(timestamp))%>%
+  mutate(year = year(date_time )) %>%
+  mutate(month = month(date_time ),
+         day = day(date_time),
+         hour = hour(date_time),
+         minute = minute(date_time))
+
+
+# which ids are missing tracking data? 
+
+# based on the tracks data there are 57 ids and animal tag nos. 
+# all tracks have a animal tag id (ie: )
+
+ids.track <- bout %>% 
+  dplyr::select(tag.local.identifier, individual.local.identifier) %>%
+  distinct()
+
+fullid <- full_join(ids, ids.track)
+
+```
+
+
+Appendices: 
+
+List of tags ids with no tracks or reference tags 
+
+```{r, echo = FALSE}
+
+norefnotrack = fullid %>%
+  filter(is.na(individual.local.identifier))%>%
+  filter(animal.id == "") %>% 
+  pull(tag.local.identifier)
+  
+norefnotrack
+
+```
+
+
+List of tags ids with no tracks
+
+```{r, echo = FALSE}
+refnotrack = fullid %>%
+  filter(is.na(individual.local.identifier))%>%
+  filter(animal.id != "") %>% 
+  pull(tag.local.identifier)
+  
+refnotrack
+#20   
