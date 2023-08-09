@@ -395,6 +395,32 @@ global
 # global 
 ```
 
+
+# Detailed geographic locations vs sub populations
+
+We can estimate the subpopulation level for those individuals with longer duration of tag timing?
+Using the estimated ranges
+- Ssouth East US
+- Tierra Del Fuego
+- Northern South America
+- Western Gulf and western Pacific. 
+
+As many of these indivuals were banded at Delaware bay, this limits the subpops to SE_US, TDF, N_SA, while the WGWP group are less likely to be detercted this far east. 
+
+
+ue to the short duration of the tags it is difficult to assign any individuls which might be from the Southern USA or northern South America groups. There are a number of individuals who are from the TDF regions which reach the breeding grounds which could be compared to the more southerly groups. 
+
+The 2023 dataset is on-going so more data is likley to come with time. 
+
+There seems to be some variation with 
+
+
+
+
+
+
+
+
 Questions/Notes 
 
 - still missing reference data for number of birds
