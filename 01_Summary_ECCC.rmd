@@ -39,11 +39,10 @@ filesoi <- filesoi[2]
 
 
 
-
 # read in reference data 
 brep <- read.csv(file.path(raw_dat, filesoi_ref))
 brep <- brep %>%
-  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id"))%>%
+  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id",tag.model))%>%
 mutate(tag.local.identifier = tag.id)
 
 no.tags.ref <- unique(brep$tag.local.identifier)
@@ -204,21 +203,20 @@ p_alldat <- ggplot(clean, aes(tag.local.identifier))+ #, fill = sensor.type))+
 # 
 # p_duration
 
-
 table_max <- clean %>% 
   dplyr::filter(year != 2025) %>%
-  dplyr::select(tag.local.identifier, date_time) %>%
+  dplyr::select(tag.local.identifier,individual.local.identifier, date_time) %>%
  # group_by(tag.local.identifier)%>% 
   slice_max(date_time, by = tag.local.identifier)
-colnames(table_max)<- c("tag.local.identifier", "max")
+colnames(table_max)<- c("tag.local.identifier", "individual.local.identifier","max")
 
 table_min <- clean %>% 
     dplyr::filter(year != 2025) %>%
-  dplyr::select(tag.local.identifier, date_time) %>%
+  dplyr::select(tag.local.identifier,individual.local.identifier, date_time) %>%
  # group_by(tag.local.identifier)%>% 
   slice_min(date_time, by = tag.local.identifier)
 
-colnames(table_min)<- c("tag.local.identifier", "min")
+colnames(table_min)<- c("tag.local.identifier", "individual.local.identifier", "min")
 
 dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
   distinct() %>%
@@ -245,9 +243,120 @@ p_duration <- ggplot(clean, aes(factor(month), fill = factor(year)))+
   facet_wrap(~tag.local.identifier)+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
+
 ```
 
-Two individuals (232986 and 232985), This could be an error at least for 232985 where the large bulk are in 2022 (2474 records) and 33 records in july 2023?
+
+Two individuals (232986 and 232985), have very long records on their tags. These are both sunbird tags deployed at Kimbles beach  and showed records in 2022 and 2023 in the same locations as previous years. Are these some feature of the sunbird tags? 
+
+
+```{r,echo = FALSE}
+
+e1 <- clean %>%
+  filter(tag.local.identifier ==232986)
+
+e1 <- e1 %>%
+  dplyr::group_by(year , month)%>%
+  dplyr::summarise( d_n = n())
+
+
+e2  <- clean %>%
+  filter(tag.local.identifier ==232985)
+
+e2 <- e2 %>%
+  dplyr::group_by(year , month)%>%
+  dplyr::summarise( d_n = n())
+  
+
+```
+
+```{r, echo = FALSE}
+#232986
+knitr::kable(e1)
+
+# 232985
+knitr::kable(e2)
+```
+
+# Banding locations
+
+```{r, echo = FALSE}
+#head(dur)
+
+loc <- dur %>%
+  dplyr::select(c(individual.local.identifier.x , dur_no))%>%
+  mutate(dloc = stringr::str_sub(individual.local.identifier.x, 1, 4)) %>%
+  mutate(dyr = stringr::str_sub(individual.local.identifier.x,13, 17)) %>%
+  mutate(dyr = gsub("_", "", dyr))
+
+dep_summary <- loc %>%
+  dplyr::group_by(dloc, dyr)%>%
+  dplyr::summarise( dloc_n = n())
+
+#dep_summary
+
+```
+
+```{r, echo = FALSE}
+knitr::kable(dep_summary)
+```
+
+
+# types of tags
+
+```{r, echo = FALSE}
+
+loc <- dur %>%
+  dplyr::select(c(individual.local.identifier.x , dur_no))%>%
+  mutate(dloc = stringr::str_sub(individual.local.identifier.x, 1, 4)) %>%
+  mutate(dyr = stringr::str_sub(individual.local.identifier.x,13, 17)) %>%
+  mutate(dyr = gsub("_", "", dyr))
+
+loc <- dplyr::left_join(loc, brep, by =c("individual.local.identifier.x" = "animal.id"))
+
+loc <- loc %>% 
+  dplyr::select(c(-deploy.on.date, -animal.ring.id, -tag.local.identifier, -tag.id))%>%
+  mutate(tag.model = case_when(
+    tag.model == "gps-pinpoint" ~ "Lotek PinPoint GPS-Argos 75",
+    tag.model == "P08011 Sunbird Tag."~"sunbird",
+    .default = as.character(tag.model)))
+
+
+type_summary <- loc %>%
+  dplyr::group_by(dloc,  tag.model)%>%
+  dplyr::summarise( ids_n = n())
+
+
+# type by duration
+type_dur <- dur %>%
+  dplyr::select(c(individual.local.identifier.x , dur_no))%>%
+  mutate(dloc = stringr::str_sub(individual.local.identifier.x, 1, 4)) %>%
+  mutate(dyr = stringr::str_sub(individual.local.identifier.x,13, 17)) %>%
+  mutate(dyr = gsub("_", "", dyr))
+
+type_dur <- dplyr::left_join(type_dur, brep, by =c("individual.local.identifier.x" = "animal.id"))%>%
+  mutate(tag.model = case_when(
+    tag.model == "gps-pinpoint" ~ "Lotek PinPoint GPS-Argos 75",
+    tag.model == "P08011 Sunbird Tag."~"sunbird",
+    .default = as.character(tag.model))) %>%
+  dplyr::select(dur_no, tag.model, tag.local.identifier)
+
+  
+  
+type_dur_sum <- type_dur %>%
+  dplyr::group_by( tag.model)%>%
+  dplyr::summarise( min_dur = min(dur_no), 
+                    mean_dur = mean(dur_no),
+                    max_dur = max(dur_no))
+
+  
+
+```
+
+```{r, echo = FALSE}
+knitr::kable(type_summary)
+```
+
 
 
 
@@ -329,6 +438,8 @@ ids.track <- bout %>%
   distinct()
 
 fullid <- full_join(ids, ids.track)
+
+
 
 ```
 
