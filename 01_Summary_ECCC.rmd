@@ -400,10 +400,64 @@ remotes::install_github("mike-decarlo/gcd")
 library(gcd)
 
 
+head(clean)
+
+table_last <- clean %>% 
+  dplyr::filter(year != 2025) %>%
+  slice_max(date_time, by = tag.local.identifier) %>%
+  dplyr::select( location.long, location.lat, individual.local.identifier)#%>%
+ # mutate(timept = "end")
+
+table_first<- clean %>% 
+  dplyr::filter(year != 2025) %>%
+  slice_min(date_time, by = tag.local.identifier) %>%
+  dplyr::select( location.long, location.lat, individual.local.identifier)#%>%
+ # mutate(timept = "start")
+
+loc_table = left_join(table_first, table_last, by = 'individual.local.identifier')
+
+hav_km <- dist_haversine(lon1 = loc_table[1,1], lat1 = loc_table[1,2]
+  , lon2 = loc_table[1,4], lat2 = loc_table[1,5], km = TRUE)
+
+hav_km
+
+
+library(tidyverse)
+df <- data.frame(a = 1:10, b = 11:20, c = 21:30)
+
+aa <- loc_table %>% 
+    group_nest(row_number()) %>% 
+    pull(data) %>% 
+    map(function(x) transmute(x,
+                                 var1 = dist_haversine(lon1 = location.long.x, lat1 = location.lat.x
+  , lon2 = location.long.y, lat2 = location.lat.y, km = TRUE),
+                                 var2 = individual.local.identifier)) 
 
 
 
 
+
+
+
+loc_table = rbind(table_first, table_last, by = 'individual.local.identifier')
+
+loc_table <- loc_table %>% 
+  group_by("individual.local.indentifier")%>%
+  mutate(gcd = distHaversine(.))
+
+
+
+ my_points <- matrix(c(81.25798, 73.81277,    # Create longitude/latitude matrix
+                      14.91254, 18.18145),
+                    nrow = 2)
+colnames(my_points) <- c("longitude", "latitude")
+rownames(my_points) <- c("point_1", "point_2")
+my_points   
+
+library("geosphere")
+
+my_dist <- distHaversine(my_points)          # Calculate Haversine distance
+my_dist    
 
 
 ```
