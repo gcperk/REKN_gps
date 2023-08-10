@@ -221,8 +221,11 @@ colnames(table_min)<- c("tag.local.identifier", "individual.local.identifier", "
 dur <- left_join(table_max, table_min, by = join_by(tag.local.identifier)) %>%
   distinct() %>%
   dplyr::mutate(duration = max- min)%>%
-  mutate(dur_no = round(as.numeric(duration),1))
+  mutate(dur_hrs = round(as.numeric(duration),1))%>%
+  mutate(dur_days = round( dur_hrs/24,1))%>%
+  mutate(year = year(min))
 
+dur_data = dur
 #library(ggplot2)
 
 dur_plot <- ggplot(dur, aes(y=factor(tag.local.identifier))) +
@@ -231,8 +234,9 @@ dur_plot <- ggplot(dur, aes(y=factor(tag.local.identifier))) +
 
 dur_plot
 
-dur_hist <- ggplot(dur, aes(dur_no))+
-  geom_histogram() +
+dur_hist <- ggplot(dur, aes(x= dur_days, colour = as.factor(year)))+
+  geom_histogram() + #fill="white", position="dodge") +
+  facet_wrap(~year)+
   xlab("duration (days)") 
 
 dur_hist
@@ -311,8 +315,8 @@ Of the tags deployed there was sunbird tags and argis pinpoint tags.
 
 ```{r, echo = FALSE}
 
-loc <- dur %>%
-  dplyr::select(c(individual.local.identifier.x , dur_no))%>%
+loc <- dur_data %>%
+  dplyr::select(c(individual.local.identifier.x , dur_days))%>%
   mutate(dloc = stringr::str_sub(individual.local.identifier.x, 1, 4)) %>%
   mutate(dyr = stringr::str_sub(individual.local.identifier.x,13, 17)) %>%
   mutate(dyr = gsub("_", "", dyr))
@@ -333,8 +337,8 @@ type_summary <- loc %>%
 
 
 # type by duration
-type_dur <- dur %>%
-  dplyr::select(c(individual.local.identifier.x , dur_no))%>%
+type_dur <- dur_data %>%
+  dplyr::select(c(individual.local.identifier.x , dur_days))%>%
   mutate(dloc = stringr::str_sub(individual.local.identifier.x, 1, 4)) %>%
   mutate(dyr = stringr::str_sub(individual.local.identifier.x,13, 17)) %>%
   mutate(dyr = gsub("_", "", dyr))
@@ -344,14 +348,14 @@ type_dur <- dplyr::left_join(type_dur, brep, by =c("individual.local.identifier.
     tag.model == "gps-pinpoint" ~ "Lotek PinPoint GPS-Argos 75",
     tag.model == "P08011 Sunbird Tag."~"sunbird",
     .default = as.character(tag.model))) %>%
-  dplyr::select(dur_no, tag.model, tag.local.identifier)
+  dplyr::select(dur_days, tag.model, tag.local.identifier)
 
 
 type_dur_sum <- type_dur %>%
   dplyr::group_by( tag.model)%>%
-  dplyr::summarise( min_dur = min(dur_no), 
-                    mean_dur = mean(dur_no),
-                    max_dur = max(dur_no))
+  dplyr::summarise( min_dur = min(dur_days), 
+                    mean_dur = mean(dur_days),
+                    max_dur = max(dur_days))
 
   
 
@@ -359,9 +363,50 @@ type_dur_sum <- type_dur %>%
 
 ```{r, echo = FALSE}
 knitr::kable(type_summary)
+knitr::kable(type_dur_sum)
+```
+
+# number of active tags 
+
+At the last data download, August 1st, a number of tags were continuing to record locations. 
+
+```{r , echo=FALSE}
+#head(dur_data)
+
+library(dplyr)
+ddur <- dur_data %>%
+  dplyr::mutate(max_month = month(max),
+         max_year = year(max))
+ddur <- ddur %>%
+  dplyr::mutate(active = ifelse(max_month == 8 & max_year == 2023, "y", "n"))
+
+active = ddur %>% filter(active == "y")
+inactive = ddur %>% filter(active == "n")
+
 ```
 
 
+Of the `r length(ddur$tag.local.identifier)` tags, `r length(active$tag.local.identifier)` were active, and `r length(inactive$tag.local.identifier)` were inactive.
+
+```{r}
+
+sort(inactive$dur_days)
+
+```
+# calculate the great circle distances to determine which individuals can be used for analysis
+
+```{r}
+remotes::install_github("mike-decarlo/gcd")
+library(gcd)
+
+
+
+
+
+
+
+
+```
 
 
 # Geographic distributon of tags
@@ -394,6 +439,25 @@ global
 # # 2. Create the plot
 # global 
 ```
+
+```{r}
+head(dur_data)
+
+library(dplyr)
+ddur <- dur_data %>%
+  mutate(max_month = month(max),
+         max_year = year(max))
+ddur <- ddur %>%
+  mutate(active = ifelse(max_month == 8 & max_year == 2023, "y", "n"))
+
+```
+
+
+
+
+
+
+
 
 
 # Detailed geographic locations vs sub populations
