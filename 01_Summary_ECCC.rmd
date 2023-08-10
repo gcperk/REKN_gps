@@ -218,7 +218,7 @@ table_min <- clean %>%
 
 colnames(table_min)<- c("tag.local.identifier", "individual.local.identifier", "min")
 
-dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
+dur <- left_join(table_max, table_min, by = join_by(tag.local.identifier)) %>%
   distinct() %>%
   dplyr::mutate(duration = max- min)%>%
   mutate(dur_no = round(as.numeric(duration),1))
@@ -412,7 +412,8 @@ ue to the short duration of the tags it is difficult to assign any individuls wh
 
 The 2023 dataset is on-going so more data is likley to come with time. 
 
-There seems to be some variation with 
+There seems to be some variation with the breeding location with various islands being used. 
+
 
 
 
