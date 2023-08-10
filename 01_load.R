@@ -2,7 +2,6 @@
 
 library(leaflet)
 library(RColorBrewer)
-library(dplyr)
 library(lubridate)
 library(sp)
 library(sf)
@@ -14,63 +13,39 @@ library(dplyr)
 library(foreach)
 
 
-# download from movebank directly or files. 
+# read in previous project data 
 
-raw_dat <- file.path("data", "movebank_locations_20230407")
+raw_dat <- file.path("data", "raw_reference_data")
 filesoi <- list.files(raw_dat)
 
-# data_set1 : atlantic
-key = "Atlantic"
+# read in the previous NWRS proj files
+key = "ReferenceDataNWRC_2021solar_proj.xlsx"
 
-d1 <- list.files(raw_dat, pattern = key)
+old <- list.files(raw_dat, pattern = key, full.names = T)
+oldf = read_excel(old)
 
+old <- oldf %>%
+  dplyr::select(Subpop, 'Original dataset',"animal-ring-id") 
+colnames(old) = c("subpop", "dataset","ringid")
 
-
-
-
-bdata <- foreach(x= filesoi, .combine = rbind) %do% {
-  x <- filesoi[2]
-  print(x)
-  btemp <- read.csv(file.path(raw_dat, x))
-  bout <- btemp %>%
-    dplyr::select(visible, timestamp, end.timestamp, location.long, location.lat,
-                  sensor.type, individual.taxon.canonical.name,
-                  tag.local.identifier)
-  bout
-}
+oo <- old %>%
+  distinct() %>%
+  dplyr::filter(!is.na('ringid'))
 
 
+# read in the key for the latest datasets 
+
+raw_dat <- file.path("data", "movebank_reference", "movebank_ref_all_deployments.xlsx")
+newf <- list.files(raw_dat, full.names = T)
+newf = read_excel(raw_dat)
 
 
-# data_set2 : spring migration 
-key = "Spring Migration"
-
-filesoi <- list.files(raw_dat, pattern = key)
-
-bdata <- foreach(x= filesoi, .combine = rbind) %do% {
-  x <- filesoi[2]
-  print(x)
-  btemp <- read.csv(file.path(raw_dat, x))
-  bout <- btemp %>%
-    dplyr::select(visible, timestamp, end.timestamp, location.long, location.lat,
-                  sensor.type, individual.taxon.canonical.name,
-                  tag.local.identifier)
-  bout
-}
-
-"study.local.timestamp" , "utm.easting", "utm.northing", "utm.zone" ,
-"study.timezone", "individual-taxon-canonical-name",  "tag.voltage",
-"mortality.status" ,"lotek.crc.status.text", "import.marked.outlier",
-"height.above.ellipsoid", "gps.fix.type.raw", "argos.nopc" ,                   
-"argos.orientation",  "argos.pass.duration", "argos.semi.major",               
-"argos.semi.minor" , "argos.sensor.1", "argos.sensor.2", "argos.sensor.3",                 
-"argos.sensor.4", "argos.lon1", "argos.lon2"  , "argos.lat2", "argos.lat1" 
+newf<- newf %>%
+  dplyr::select(movebank_name ,`Band Number`)%>%
+  distinct() 
+  
+colnames(newf) = c("movebank_name","ringid" )
 
 
-# filter 
-
-"sensor.type"
-
-"lotek.crc.status" %in% c("G", "C")
-"argos.lc" %in% c("G", "3", '2', '1') # remove the "Z', 'B', 'A'
-
+tags <- dplyr::full_join(old, newf)
+tt <- tags <- tags %>%filter(!is.na(subpop))
