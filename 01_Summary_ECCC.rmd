@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ## Summary of ECCC
@@ -409,18 +409,19 @@ ddur <- ddur %>%
  ))
 
 ```
-# group the points into classes to help distinguish which can be used in the breeding area. 
+group the points into classes to help distinguish which can be used in the breeding area. 
 
 
-```{r}
+```{r, echo = FALSE}
 
 ggplot(ddur, aes(x = dur_days, y = as.factor(tag.local.identifier), colour=  as.factor(dur_class)))+ 
   geom_point()
   
 ```
 
+# Great Circle distance
 
-# calculate the great circle distances to determine which individuals can be used for analysis
+Calculate the great circle distances to determine which individuals can be used for analysis
 
 ```{r}
 #remotes::install_github("mike-decarlo/gcd")
@@ -483,7 +484,6 @@ ggplot(alldat, aes(x = dur_days, y = gcd, colour=  as.factor(dur_class)))+
   
 
 ```
-
 The great circle distance was calculated using the rough first and last location points as a rough proxy for the total movement. 
 
 ```{r, echo = FALSE}
@@ -544,7 +544,7 @@ global
 
 ```{r}
 
-head(alldat)
+#head(alldat)
 
 
 all <- alldat %>% dplyr:: select(individual.local.identifier.x,dur_days, year, active, dur_class,gcd, gcd_class)%>%
@@ -565,7 +565,7 @@ dd <- ggplot(data = Americas) +
   theme(axis.text.x=element_blank(),
         axis.text.y=element_blank())
 
-dd
+#dd
 
 
 # entire north America 
@@ -580,17 +580,27 @@ gg <- ggplot(data = Americas) +
   theme(axis.text.x=element_blank(),
         axis.text.y=element_blank())
 
-gg
+#gg
 
 
 ```
+# Plot based on duration class
 
+ 
+```{r}
+dd
+```
 
+Plot based on great circle distance class
 
+gcd < 1000 ~ 1,
+gcd >1001 & gcd <3000 ~2, 
+gcd >3001 & gcd <6000 ~3, 
+gcd >6001 ~4
 
-
-
-
+```{r}
+gg
+```
 
 
 # Detailed geographic locations vs sub populations
@@ -605,11 +615,58 @@ Using the estimated ranges
 As many of these indivuals were banded at Delaware bay, this limits the subpops to SE_US, TDF, N_SA, while the WGWP group are less likely to be detercted this far east. 
 
 
-ue to the short duration of the tags it is difficult to assign any individuls which might be from the Southern USA or northern South America groups. There are a number of individuals who are from the TDF regions which reach the breeding grounds which could be compared to the more southerly groups. 
+```{r}
+min_lat <- arf_sf %>% 
+  cbind(st_coordinates(arf_sf))%>%
+  st_drop_geometry()%>%
+  dplyr::select(individual.local.identifier, Y)%>%
+  group_by(individual.local.identifier)%>%
+  slice_min(Y) %>%
+  mutate(pop_class = case_when(
+     Y < -6 ~ "TDF",
+     Y >  0 & Y < 20 ~ "SA",
+     Y > 20.1 ~ "USA",
+      .default = NA
+))
+
+
+arf <- arf_sf %>%
+  left_join(min_lat, by = "individual.local.identifier" )
+
+
+
+
+# entire north America 
+subpop <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = arf, size = 1, colour = "dark blue") +
+  facet_wrap(~pop_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+subpop
+```
+
+Due to the short duration of the tags it is difficult to assign any individuls which might be from the Southern USA or northern South America groups. There are a number of individuals who are from the TDF regions which reach the breeding grounds which could be compared to the more southerly groups. 
+
+
+THis figure is somewhat interesting as it shows that the TDF individuals are breeding on the western side of arctic, while the SA (NA) is breeding on the eastern edge of the arctic. The USE or unknown group appear to be breeding somewhere in the middle, unless there is something else to seperate the individuals. 
+
+
 
 The 2023 dataset is on-going so more data is likley to come with time. 
 
 There seems to be some variation with the breeding location with various islands being used. 
+
+
+
+
+
+
 
 
 
