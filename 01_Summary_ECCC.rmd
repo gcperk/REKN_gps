@@ -634,8 +634,6 @@ arf <- arf_sf %>%
   left_join(min_lat, by = "individual.local.identifier" )
 
 
-
-
 # entire north America 
 subpop <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
@@ -658,10 +656,63 @@ THis figure is somewhat interesting as it shows that the TDF individuals are bre
 
 
 
-The 2023 dataset is on-going so more data is likley to come with time. 
+The 2023 dataset is on-going so more data is likely to come with time. 
 
 There seems to be some variation with the breeding location with various islands being used. 
 
+```{r}
+
+# list of tags reviewed in QGIS: 
+
+
+a <- sort(unique(clean$tag.local.identifier ))
+
+#prince_charles & baffin island
+pc <- c(230299, 230309, 230312, 232981, 234236,234238 ,240161, 242570) 
+
+odd <- c(240165, 230302, 230307) 
+         
+nbreed <- c(230300, 230306, 230319, 232980, 234235, 238543, 240157,240160, 240162, 240163, 
+            240166, 240169, 242571, 230316,230315, 240155) 
+
+sth <- c(230308, 238544)  
+         
+kw <- c(230301, 230304, 230310 , 230311, 230314 ,230317 , 234237, 240156, 240164, 240168, 242573,  242580) 
+        
+pvic <- c (230303, 230318, 230320, 232982, 232985, 232986, 234233,  234234, 234239,234240, 238546,
+           240158, 240159 , 240167, 241166,  241167, 242574, 242577) 
+           
+
+# breeding local 
+
+breedsf <- arf_sf %>% 
+  mutate(breed_class = case_when(
+     tag.local.identifier %in%  pc ~ "princec_baffin",
+     tag.local.identifier %in%  odd ~ "unknown",
+     tag.local.identifier %in% nbreed ~ "non_breed",
+     tag.local.identifier %in%  sth ~ "Southhampton",
+     tag.local.identifier %in%  kw ~ "king_william",
+     tag.local.identifier %in%  pvic ~ "prince_vic",
+      .default = NA
+))
+
+
+# entire north America 
+breed_loc <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = breedsf, size = 1, colour = "dark blue") +
+  facet_wrap(~breed_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+breed_loc
+     
+
+```
 
 
 
