@@ -6,12 +6,12 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ## Summary of ECCC
 
-```{r library, warning=FALSE, message=FALSE, include = FALSE}
+```{r library, warning=FALSE, message=FALSE, include = FALSE, echo = FALSE}
 library(leaflet)
 library(RColorBrewer)
 library(dplyr)
@@ -117,14 +117,14 @@ clean <- bout %>%
   filter(!is.na(location.long)) %>%
   filter(!is.na(location.lat)) 
 
-length(clean$visible)
+#length(clean$visible)
 
 cleanargos <- clean%>% 
   dplyr::filter(argos.lc != "Z")%>%
   dplyr::filter(argos.lc != "A")%>% 
  dplyr::filter(argos.lc != "B")
 
-length(cleanargos$visible)
+#length(cleanargos$visible)
 
 clean = cleanargos
 
@@ -153,7 +153,7 @@ The cleaned date range varies from
 
 # GPS vs argos
 
-The data split between gps and argos data records. Large proportion are GPS data sets. 
+The data split between gps and argos data records. Large proportion are argos doppler shift.  
 
 ```{r, echo = FALSE, message=FALSE}
 tag_type <- clean %>%
@@ -285,7 +285,7 @@ knitr::kable(e2)
 # Banding locations
 
 The banding locations were largely in Delaware Bay (included KIMBLESO, MOORES, FORTESCUE,  EASTPIT? East point?) and a location in Brazil near Porto Alegra (PEIXE). 
-THhis table shows the number of individuals by banding location and year.
+This table shows the number of individuals by banding location and year.
 
 ```{r, echo = FALSE}
 #head(dur)
@@ -311,7 +311,7 @@ knitr::kable(dep_summary)
 
 # Types of tags
 
-Of the tags deployed there was sunbird tags and argis pinpoint tags. 
+Of the tags deployed there was sunbird tags and argis pinpoint tags. THe sunbird tags lasted much longer approx 208 days on average (including the potential outliers). The argos tags were shorter in duration and generally captured the period of may/june to October. 
 
 ```{r, echo = FALSE}
 
@@ -368,7 +368,7 @@ knitr::kable(type_dur_sum)
 
 # Number of active tags 
 
-At the last data download, August 1st, a number of tags were continuing to record locations. 
+At the last data download, August 1st, a number of tags were continuing to record locations. THese represent active tags where more details can be gained. Inactive tags are those which have stopped transmitting. 
 
 ```{r , echo=FALSE}
 #head(dur_data)
@@ -388,19 +388,43 @@ inactive = ddur %>% filter(active == "n")
 
 Of the `r length(ddur$tag.local.identifier)` tags, `r length(active$tag.local.identifier)` were active, and `r length(inactive$tag.local.identifier)` were inactive.
 
-```{r}
+```{r, echo = FALSE}
 
 #sort(inactive$dur_days)
 
+ggplot(ddur, aes(x = dur_days, y = as.factor(tag.local.identifier), colour=  active))+ 
+  geom_point()
+
+
+sort(ddur$v)
+
+
+ddur <- ddur %>%
+  mutate(dur_class = case_when(
+    dur_days < 29 ~ 1,
+    dur_days >29 & dur_days <60 ~2, 
+    dur_days >60.1 & dur_days <100 ~3, 
+    dur_days >100 ~4,
+    .default = NA
+ ))
+
 ```
+# group the points into classes to help distinguish which can be used in the breeding area. 
+
+
+```{r}
+
+ggplot(ddur, aes(x = dur_days, y = as.factor(tag.local.identifier), colour=  as.factor(dur_class)))+ 
+  geom_point()
+  
+```
+
+
 # calculate the great circle distances to determine which individuals can be used for analysis
 
 ```{r}
 #remotes::install_github("mike-decarlo/gcd")
 library(gcd)
-
-
-#head(clean)
 
 table_last <- clean %>% 
   dplyr::filter(year != 2025) %>%
@@ -441,11 +465,26 @@ havdf <- bind_rows(hav_km) %>%
 colnames(havdf) <-c ("gcd","individual.local.identifier.x" )
 
 
-alldat <- left_join(dur_data, havdf, by = c("individual.local.identifier.x"))
+alldat <- left_join(ddur, havdf, by = c("individual.local.identifier.x"))
+
+
+alldat <- alldat %>%
+  mutate(gcd_class = case_when(
+    gcd < 1000 ~ 1,
+    gcd >1001 & gcd <3000 ~2, 
+   gcd >3001 & gcd <6000 ~3, 
+    gcd >6001 ~4,
+    .default = NA
+ ))
+
+
+ggplot(alldat, aes(x = dur_days, y = gcd, colour=  as.factor(dur_class)))+ 
+  geom_point()
+  
 
 ```
 
-Th e great circle distance was calculated using the rough first and last loaction points as a rough proxy for the total movement 
+The great circle distance was calculated using the rough first and last location points as a rough proxy for the total movement. 
 
 ```{r, echo = FALSE}
 
@@ -455,26 +494,21 @@ gcddur_plot <- ggplot(alldat, aes(y=factor(tag.local.identifier))) +
   scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
 
 gcddur_plot
-
-gcp_hist <- ggplot(alldat, aes(x= gcd, colour = as.factor(year)))+
-  geom_histogram() + #fill="white", position="dodge") +
-  #facet_wrap(~year)+
-  xlab("distance (km)") 
-gcp_hist
+# 
+# gcp_hist <- ggplot(alldat, aes(x= gcd, colour = as.factor(year)))+
+#   geom_histogram() + #fill="white", position="dodge") +
+#   #facet_wrap(~year)+
+#   xlab("distance (km)") 
+# gcp_hist
 
 gcp_hist <- ggplot(alldat, aes(x= gcd))+
-  geom_histogram(bins = 1000) + #fill="white", position="dodge") +
+  geom_histogram(bins = 50) + #fill="white", position="dodge") +
   #facet_wrap(~year)+
   xlab("distance (km)") +
   scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
 gcp_hist
 
 ```
-
-
-
-
-
 
 # Geographic distributon of tags
 
@@ -506,16 +540,48 @@ global
 # # 2. Create the plot
 # global 
 ```
+# Plot by duration class 
 
 ```{r}
-head(dur_data)
 
-library(dplyr)
-ddur <- dur_data %>%
-  mutate(max_month = month(max),
-         max_year = year(max))
-ddur <- ddur %>%
-  mutate(active = ifelse(max_month == 8 & max_year == 2023, "y", "n"))
+head(alldat)
+
+
+all <- alldat %>% dplyr:: select(individual.local.identifier.x,dur_days, year, active, dur_class,gcd, gcd_class)%>%
+  rename("individual.local.identifier"  = individual.local.identifier.x )
+   
+arf_sf <- left_join(rf_sf, all) 
+
+                        
+# entire north America 
+dd <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = arf_sf, size = 1, colour = "dark blue") +
+  facet_wrap(~dur_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+dd
+
+
+# entire north America 
+gg <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = arf_sf, size = 1, colour = "dark blue") +
+  facet_wrap(~gcd_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+gg
+
 
 ```
 
