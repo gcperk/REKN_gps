@@ -576,7 +576,7 @@ norefnotrack = fullid %>%
   #filter(animal.id == "") %>% 
   pull(tag.local.identifier)
   
-#norefnotrack
+norefnotrack
 
 
 ```
@@ -591,7 +591,7 @@ refnotrack = fullid %>%
   #filter(animal.id != "") %>% 
   pull(tag.local.identifier)
   
-#refnotrack
+refnotrack
   
 
 

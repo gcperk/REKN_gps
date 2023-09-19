@@ -1,12 +1,12 @@
 ---
 title: "01_summary_MA Migration"
 author: "Gen Perkins"
-date: "2023-06-11"
+date: "2023-09-18"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ## Summary of MA Migration 
@@ -27,7 +27,8 @@ library("rnaturalearthdata")
 
 
 #raw_dat <- file.path("data", "movebank_locations_20230407")
-raw_dat <- file.path("data", "movebank_locations_20230724")
+#raw_dat <- file.path("data", "movebank_locations_20230724")
+raw_dat <- file.path("data", "movebank_locations_20230918")
 
 filesoi <- list.files(raw_dat)
 
@@ -95,25 +96,58 @@ knitr::kable(ids)
 ```{r, echo=FALSE}
 
 clean <- bout %>%
-  filter(visible == "true")
+  filter(visible == "true")%>%
+  filter(!is.na(location.long)) %>%
+  filter(!is.na(location.lat))
+
+
+cleanargos <- clean %>% 
+  dplyr::filter(argos.lc != "Z")%>%
+  dplyr::filter(argos.lc != "A")%>% 
+ dplyr::filter(argos.lc != "B")
+
+#length(cleanargos$visible)
+
+clean = cleanargos
+
+errrors_tble <- clean %>%
+  group_by(tag.local.identifier, year, visible) %>%
+  summarise(count = n())
+
+
+# #save out file
+clean_save = clean %>% mutate(proj = "ma_migration")
+saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20230918.rds"))
+
+
 
 ```
 
 
 # Raw data
 
-The number of records as of early June 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
-`r min(range(bout$year))` to `r max(range(bout$year))`. Some obvious date errors to correct.
+The number of raw records as of September 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
+`r min(range(bout$year))` to `r max(range(bout$year))`.
 
-If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = 0, A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
+
+If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
+Argos accuracy codes are: 
+
+- Class 0: over 1500 m radius (not currently filtered)
+
+- Class A: Argos no accuracy estimation (3 messages received)
+- Class B: Argos no accuracy estimation (1 or 2 messages received)
+- Class Z: Argos Invalid Location
+
+
 The cleaned date range varies from 
 `r min(range(clean$year))` to `r max(range(clean$year))`.
 
 
-
 # GPS vs argos
 
-The data split between gps and argos data records. 
+
+The data split between gps and argos data records. Large proportion are argos doppler shift.   These represent two different methods of calculating the locations and all types can be used. 
 
 ```{r, echo = FALSE, message=FALSE}
 tag_type <- clean %>%
@@ -169,16 +203,20 @@ colnames(table_min)<- c("tag.local.identifier", "min")
 dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
   distinct() %>%
   dplyr::mutate(duration = max- min)%>%
-  mutate(dur_no = round(as.numeric(duration),1))
+  mutate(dur_days = round(as.numeric(duration),1))%>%
+  mutate(year = year(min))
 
-# 
+
+dur_data = dur
+
+
 dur_plot <- ggplot(dur, aes(y=factor(tag.local.identifier))) +
   geom_segment(aes(x=min, xend=max, y=factor(tag.local.identifier),    yend=factor(tag.local.identifier)), size=1)+
   xlab("Date") + ylab("Tag") 
 
 dur_plot
 
-dur_hist <- ggplot(dur, aes(dur_no))+
+dur_hist <- ggplot(dur, aes(dur_days))+
   geom_histogram(binwidth = 5) +
   xlab("duration (days)") 
 
@@ -193,6 +231,29 @@ p_duration <- ggplot(clean, aes(factor(month), fill = factor(year)))+
 p_duration
 
 ```
+
+
+# Number of active tags 
+
+At the last data download, August 1st, a number of tags were continuing to record locations. THese represent active tags where more details can be gained. Inactive tags are those which have stopped transmitting. 
+
+```{r , echo=FALSE}
+#head(dur_data)
+
+library(dplyr)
+ddur <- dur_data %>%
+  dplyr::mutate(max_month = month(max),
+         max_year = year(max))
+ddur <- ddur %>%
+  dplyr::mutate(active = ifelse(max_month == 9 & max_year == 2023, "y", "n"))
+
+active = ddur %>% filter(active == "y")
+inactive = ddur %>% filter(active == "n")
+
+```
+
+
+Of the `r length(ddur$tag.local.identifier)` tags, `r length(active$tag.local.identifier)` were active, and `r length(inactive$tag.local.identifier)` were inactive.
 
 
 
@@ -225,6 +286,77 @@ global
 # # 2. Create the plot
 # global 
 ```
+
+
+
+# Detailed geographic locations vs sub populations
+
+We can estimate the subpopulation level for those individuals with longer duration of tag timing?
+Using the estimated ranges
+- South East US
+- Northern South America
+- Western Gulf and western Pacific. 
+
+
+```{r, echo = FALSE}
+# 
+# all <- alldat %>% dplyr:: select(individual.local.identifier.x,dur_days, year, active, dur_class,gcd, gcd_class)%>%
+#   rename("individual.local.identifier"  = individual.local.identifier.x )
+#    
+# arf_sf <- left_join(rf_sf, all) 
+
+a <- sort(unique(clean$tag.local.identifier ))
+
+
+
+baffin <- c( 236449)
+
+kw <- c(236448)
+
+pvic <- c(236453)
+         
+cari <- c(236444)
+
+sth_am <- c(236445,  236450, 236451)
+            
+hudson <- c(236452)
+  
+odd <- c( 236446, 236447) 
+
+
+
+# breeding local 
+
+breedsf <- rf_sf %>% 
+  mutate(breed_class = case_when(
+     tag.local.identifier %in%  baffin ~ "baffin",
+     tag.local.identifier %in%  hudson ~ "hudson_bay",
+     tag.local.identifier %in% sth_am ~ "sth_america",
+     tag.local.identifier %in%  cari ~ "caribbean",
+     tag.local.identifier %in%  kw ~ "king_william",
+     tag.local.identifier %in%  pvic ~ "princess_vic",
+      tag.local.identifier %in%  odd ~ "unknown",
+      .default = NA
+))
+
+
+# entire north America 
+breed_loc <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = breedsf, size = 1, colour = "dark blue") +
+  facet_wrap(~breed_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+ coord_sf(xlim = c(-110, -30), ylim = c(-10, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+breed_loc
+
+```
+
+
 
 Questions? 
 
