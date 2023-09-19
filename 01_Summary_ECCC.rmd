@@ -1,7 +1,7 @@
 ---
 title: "01_Summary_ECCC"
 author: "Gen Perkins"
-date: "2023-08-14"
+date: "2023-09-18"
 output: html_document
 ---
 
@@ -27,7 +27,9 @@ library("rnaturalearthdata")
 
 
 #raw_dat <- file.path("data", "movebank_locations_20230407")
-raw_dat <- file.path("data", "movebank_locations_20230724")
+#raw_dat <- file.path("data", "movebank_locations_20230724")
+raw_dat <- file.path("data", "movebank_locations_20230918")
+
 filesoi <- list.files(raw_dat)
 
 # data_set3 : spring migration 
@@ -53,7 +55,7 @@ no.ids.ref <- unique(brep$animal.id)
 # 120 tag ids 
 # 71 names animal ids
 
-
+# read in the location data 
 btemp <- read.csv(file.path(raw_dat, filesoi))
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
@@ -76,7 +78,7 @@ no.tags <- unique(bout$tag.local.identifier)
 no.ids <- unique(bout$individual.local.identifier)
   
 
-# 59 tracks and track names 
+# 60 tracks and track names 
 
 ids <- bout %>%
   dplyr::select(tag.local.identifier, individual.local.identifier) %>%
@@ -119,7 +121,7 @@ clean <- bout %>%
 
 #length(clean$visible)
 
-cleanargos <- clean%>% 
+cleanargos <- clean %>% 
   dplyr::filter(argos.lc != "Z")%>%
   dplyr::filter(argos.lc != "A")%>% 
  dplyr::filter(argos.lc != "B")
@@ -132,28 +134,41 @@ errrors_tble <- bout %>%
   group_by(tag.local.identifier, year, visible) %>%
   summarise(count = n())
 
+# #save out file
+#clean_save = clean %>% mutate(proj = "ECCC")
+#saveRDS(clean_save, file = file.path("output", "rekn_eccc_20230918.rds"))
+
 
 ```
 
 
 # Raw data
 
-The number of records as of July 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
-`r min(range(bout$year))` to `r max(range(bout$year))`. Some obvious date errors to correct.
+The number of raw records as of September 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
+`r min(range(bout$year))` to `r max(range(bout$year))`.
 
 
 ```{r, echo = FALSE}
 errors
 ```
 
-If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = 0, A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
+If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
+Argos accuracy codes are: 
+
+- Class 0: over 1500 m radius (not currently filtered)
+
+- Class A: Argos no accuracy estimation (3 messages received)
+- Class B: Argos no accuracy estimation (1 or 2 messages received)
+- Class Z: Argos Invalid Location
+
+
 The cleaned date range varies from 
 `r min(range(clean$year))` to `r max(range(clean$year))`.
 
 
 # GPS vs argos
 
-The data split between gps and argos data records. Large proportion are argos doppler shift.  
+The data split between gps and argos data records. Large proportion are argos doppler shift.   These represent two different methods of calculating the locations and all types can be used. 
 
 ```{r, echo = FALSE, message=FALSE}
 tag_type <- clean %>%
@@ -178,11 +193,11 @@ p_alldat <- ggplot(clean, aes(year, fill = sensor.type))+
 ```{r, echo= FALSE}
 p_alldat 
 
-p_alldat <- ggplot(clean, aes(tag.local.identifier))+ #, fill = sensor.type))+
-  geom_bar(position = "dodge") +
-  ylim(0, 100)+
-  #facet_wrap(~year)+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+# p_alldat <- ggplot(clean, aes(tag.local.identifier))+ #, fill = sensor.type))+
+#   geom_bar(position = "dodge") +
+#   ylim(0, 100)+
+#   #facet_wrap(~year)+
+#   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 #library(scales)
 #p_alldat + scale_y_continuous(trans = log2_trans())
@@ -204,14 +219,13 @@ p_alldat <- ggplot(clean, aes(tag.local.identifier))+ #, fill = sensor.type))+
 # p_duration
 
 table_max <- clean %>% 
-  dplyr::filter(year != 2025) %>%
   dplyr::select(tag.local.identifier,individual.local.identifier, date_time) %>%
  # group_by(tag.local.identifier)%>% 
   slice_max(date_time, by = tag.local.identifier)
 colnames(table_max)<- c("tag.local.identifier", "individual.local.identifier","max")
 
 table_min <- clean %>% 
-    dplyr::filter(year != 2025) %>%
+#   dplyr::filter(year != 2025) %>%
   dplyr::select(tag.local.identifier,individual.local.identifier, date_time) %>%
  # group_by(tag.local.identifier)%>% 
   slice_min(date_time, by = tag.local.identifier)
@@ -284,7 +298,7 @@ knitr::kable(e2)
 
 # Banding locations
 
-The banding locations were largely in Delaware Bay (included KIMBLESO, MOORES, FORTESCUE,  EASTPIT? East point?) and a location in Brazil near Porto Alegra (PEIXE). 
+The banding locations were largely in Delaware Bay (included KIMBLESO, MOORES, FORTESCUE,  EASTPIT? East point?) and a location in New Jersey (Pesca) along with a location in Brazil near Porto Alegra (PEIXE).
 This table shows the number of individuals by banding location and year.
 
 ```{r, echo = FALSE}
@@ -311,7 +325,7 @@ knitr::kable(dep_summary)
 
 # Types of tags
 
-Of the tags deployed there was sunbird tags and argis pinpoint tags. THe sunbird tags lasted much longer approx 208 days on average (including the potential outliers). The argos tags were shorter in duration and generally captured the period of may/june to October. 
+Of the tags deployed there was sunbird tags and argos pinpoint tags. THe sunbird tags lasted much longer approx 208 days on average (including the potential outliers). The argos tags were shorter in duration and generally captured the period of may/june to October. 
 
 ```{r, echo = FALSE}
 
@@ -378,7 +392,7 @@ ddur <- dur_data %>%
   dplyr::mutate(max_month = month(max),
          max_year = year(max))
 ddur <- ddur %>%
-  dplyr::mutate(active = ifelse(max_month == 8 & max_year == 2023, "y", "n"))
+  dplyr::mutate(active = ifelse(max_month == 9 & max_year == 2023, "y", "n"))
 
 active = ddur %>% filter(active == "y")
 inactive = ddur %>% filter(active == "n")
@@ -409,13 +423,13 @@ ddur <- ddur %>%
  ))
 
 ```
-group the points into classes to help distinguish which can be used in the breeding area. 
 
 
 ```{r, echo = FALSE}
+#group the points into classes to help distinguish which can be used in the breeding area. 
 
-ggplot(ddur, aes(x = dur_days, y = as.factor(tag.local.identifier), colour=  as.factor(dur_class)))+ 
-  geom_point()
+#ggplot(ddur, aes(x = dur_days, y = as.factor(tag.local.identifier), colour=  as.factor(dur_class)))+ 
+#  geom_point()
   
 ```
 
@@ -428,14 +442,14 @@ Calculate the great circle distances to determine which individuals can be used 
 library(gcd)
 
 table_last <- clean %>% 
-  dplyr::filter(year != 2025) %>%
+  #dplyr::filter(year != 2025) %>%
   slice_max(date_time, by = tag.local.identifier) %>%
   slice_head(n = 1, by = tag.local.identifier) %>%
   dplyr::select( location.long, location.lat, individual.local.identifier)#%>%
  # mutate(timept = "end")
 
 table_first <- clean %>% 
-  dplyr::filter(year != 2025) %>%
+  #dplyr::filter(year != 2025) %>%
   slice_min(date_time, by = tag.local.identifier) %>%
   dplyr::select( location.long, location.lat, individual.local.identifier)#%>%
  # mutate(timept = "start")
@@ -484,6 +498,7 @@ ggplot(alldat, aes(x = dur_days, y = gcd, colour=  as.factor(dur_class)))+
   
 
 ```
+
 The great circle distance was calculated using the rough first and last location points as a rough proxy for the total movement. 
 
 ```{r, echo = FALSE}
@@ -494,7 +509,7 @@ gcddur_plot <- ggplot(alldat, aes(y=factor(tag.local.identifier))) +
   scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
 
 gcddur_plot
-# 
+
 # gcp_hist <- ggplot(alldat, aes(x= gcd, colour = as.factor(year)))+
 #   geom_histogram() + #fill="white", position="dodge") +
 #   #facet_wrap(~year)+
@@ -584,6 +599,7 @@ gg <- ggplot(data = Americas) +
 
 
 ```
+
 # Plot based on duration class
 
  
@@ -607,25 +623,27 @@ gg
 
 We can estimate the subpopulation level for those individuals with longer duration of tag timing?
 Using the estimated ranges
-- Ssouth East US
+- South East US
 - Tierra Del Fuego
 - Northern South America
 - Western Gulf and western Pacific. 
 
-As many of these indivuals were banded at Delaware bay, this limits the subpops to SE_US, TDF, N_SA, while the WGWP group are less likely to be detercted this far east. 
+As many of these individuals were banded at Delaware bay, this limits the subpops to SE_US, TDF, N_SA, while the WGWP group are less likely to be detected this far east. 
 
 
-```{r}
+```{r, echo = FALSE}
+
 min_lat <- arf_sf %>% 
   cbind(st_coordinates(arf_sf))%>%
-  st_drop_geometry()%>%
+  st_drop_geometry() %>%
   dplyr::select(individual.local.identifier, Y)%>%
   group_by(individual.local.identifier)%>%
   slice_min(Y) %>%
   mutate(pop_class = case_when(
-     Y < -6 ~ "TDF",
-     Y >  0 & Y < 20 ~ "SA",
-     Y > 20.1 ~ "USA",
+     Y < -10 ~ "TDF",
+     Y > -10.0001 & Y < 30 ~ "N_SA",
+     #Y >  20.01 & Y < 30 ~ "SE_USA",
+     Y > 30.1 ~ "USA",
       .default = NA
 ))
 
@@ -647,12 +665,13 @@ subpop <- ggplot(data = Americas) +
         axis.text.y=element_blank())
 
 subpop
+
 ```
 
-Due to the short duration of the tags it is difficult to assign any individuls which might be from the Southern USA or northern South America groups. There are a number of individuals who are from the TDF regions which reach the breeding grounds which could be compared to the more southerly groups. 
+Due to the short duration of the tags it is difficult to assign any individuals which might be from the Southern USA or northern South America groups. There are a number of individuals who are from the TDF regions which reach the breeding grounds which could be compared to the more southerly groups. 
 
 
-THis figure is somewhat interesting as it shows that the TDF individuals are breeding on the western side of arctic, while the SA (NA) is breeding on the eastern edge of the arctic. The USE or unknown group appear to be breeding somewhere in the middle, unless there is something else to seperate the individuals. 
+This figure is somewhat interesting as it shows that the TDF individuals are breeding on the western side of arctic, while the SA (NA) is breeding on the eastern edge of the arctic. The USE or unknown group appear to be breeding somewhere in the middle, unless there is something else to separate the individuals. 
 
 
 
@@ -670,15 +689,20 @@ a <- sort(unique(clean$tag.local.identifier ))
 #prince_charles & baffin island
 pc <- c(230299, 230309, 230312, 232981, 234236,234238 ,240161, 242570) 
 
-odd <- c(240165, 230302, 230307) 
+# unusual/non-breed
+odd <- c( 230302, 230307, 230300,230315, 230316 )
          
-nbreed <- c(230300, 230306, 230319, 232980, 234235, 238543, 240157,240160, 240162, 240163, 
-            240166, 240169, 242571, 230316,230315, 240155) 
+nbreed <- c( 230306,  230319, 232980, 234235, 238543, 240157,240160, 240162, 240163, 
+            240166, 240169, 242571,  240155, 238542, 
+            240165) 
 
+#southhampton
 sth <- c(230308, 238544)  
-         
-kw <- c(230301, 230304, 230310 , 230311, 230314 ,230317 , 234237, 240156, 240164, 240168, 242573,  242580) 
         
+#king william 
+kw <- c(230301, 230304, 230310 , 230311, 230314 ,230317 , 234237, 240156, 240164, 240168, 242573,  242580) 
+  
+#princess Victoria     
 pvic <- c (230303, 230318, 230320, 232982, 232985, 232986, 234233,  234234, 234239,234240, 238546,
            240158, 240159 , 240167, 241166,  241167, 242574, 242577) 
            
@@ -687,8 +711,8 @@ pvic <- c (230303, 230318, 230320, 232982, 232985, 232986, 234233,  234234, 2342
 
 breedsf <- arf_sf %>% 
   mutate(breed_class = case_when(
-     tag.local.identifier %in%  pc ~ "princec_baffin",
-     tag.local.identifier %in%  odd ~ "unknown",
+     tag.local.identifier %in%  pc ~ "prince_baffin",
+     tag.local.identifier %in%  odd ~ "hudson_bay",
      tag.local.identifier %in% nbreed ~ "non_breed",
      tag.local.identifier %in%  sth ~ "Southhampton",
      tag.local.identifier %in%  kw ~ "king_william",
@@ -715,9 +739,9 @@ breed_loc
 ```
 
 
+There was also an individual who flew way out to sea and then returned : #238544
 
-
-
+This individual was in the southhampton nesting group. 
 
 
 
@@ -730,9 +754,7 @@ breed_loc
 Questions/Notes 
 
 - still missing reference data for number of birds
-- remove 2025 records
-- change from lotek to argos? is this a concern or just based on accuracy?
-- all ref data compiled
+
 
 ```{r}
 
@@ -792,9 +814,9 @@ norefnotrack = fullid %>%
   pull(tag.local.identifier)
   
 norefnotrack
+length(norefnotrack)
 
 ```
-
 
 List of tags ids with no tracks
 
@@ -805,4 +827,5 @@ refnotrack = fullid %>%
   pull(tag.local.identifier)
   
 refnotrack
+length(refnotrack)
 #20   

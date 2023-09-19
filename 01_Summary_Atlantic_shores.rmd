@@ -1,17 +1,18 @@
 ---
 title: "01_Summary_Atlantic_shores"
 author: "Gen Perkins"
-date: "2023-06-11"
+date: "2023-09-18"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ## Summary of Atlantic Shores
 
 ```{r library, warning=FALSE, message=FALSE, include = FALSE}
+
 library(leaflet)
 library(RColorBrewer)
 library(dplyr)
@@ -26,7 +27,8 @@ library("rnaturalearth")
 library("rnaturalearthdata")
 
 
-raw_dat <- file.path("data", "movebank_locations_20230724")
+#raw_dat <- file.path("data", "movebank_locations_20230724")
+raw_dat <- file.path("data", "movebank_locations_20230918")
 filesoi <- list.files(raw_dat)
 
 # data_set3 : spring migration 
@@ -102,7 +104,7 @@ ymin = min(range(bout$year))
 ymax = max(range(bout$year))
 ```
 
-This dataset has some discrepancies within the reference data and the track data. The reference data show 107 tags (based on tag-id number ie. 204561). Of these I found deployment information on 78 tags, which also includes 16 tags which are duplicated in USFW study. Tracks for these 16 duplicated tags are within the atlantic tags track set. 
+This dataset has some discrepancies within the reference data and the track data. The reference data show 107 tags (based on tag-id number ie. 204561). Of these I found deployment information on 78 tags, which also includes 16 tags which are duplicated in USFW study. Tracks for these 16 duplicated tags are within the atlantic tags track set but appear less updated (unsure why?). 
 
 A review of the track data shows records for `r length(no.tags)` tags (tag.local.identifier) and `r length(no.ids)` (individual.local.identifier). 
 
@@ -127,6 +129,15 @@ clean <- bout %>%
   filter(!is.na(location.long)) %>%
   filter(!is.na(location.lat)) %>%
   filter(year <2024)
+
+
+clean <- clean %>% 
+  dplyr::filter(argos.lc != "Z")%>%
+  dplyr::filter(argos.lc != "A")%>% 
+ dplyr::filter(argos.lc != "B")
+
+
+
   
 errors <- ggplot(clean, aes(year, fill = visible))+
     geom_bar(position = "dodge")
@@ -135,23 +146,40 @@ errors <- ggplot(clean, aes(year, fill = visible))+
 #   summarise(count = n())
 
 
+
+# #save out file
+#clean_save = clean %>% mutate(proj = "atlantic")
+#saveRDS(clean_save, file = file.path("output", "rekn_atlantic_20230918.rds"))
+
+
+
+
 ```
 
 
 # Raw data
 
-The number of records as of early June 2023 is `r length(clean$tag.local.identifier)`.  The raw date range varies from 
-`r min(range(clean$year))` to `r max(range(clean$year))`. Some obvious date errors were corrected.
+The number of records as of early June 2023 is `r length(bout$tag.local.identifier)`.  The raw date range varies from 
+`r min(range(bout$year))` to `r max(range(bout$year))`. 
 
-```{r, echp = FALSE}
+```{r, echo = FALSE}
 errors
 ```
 
 
-If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = 0, A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
+
+If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
+Argos accuracy codes are: 
+
+- Class 0: over 1500 m radius (not currently filtered)
+
+- Class A: Argos no accuracy estimation (3 messages received)
+- Class B: Argos no accuracy estimation (1 or 2 messages received)
+- Class Z: Argos Invalid Location
+
+
 The cleaned date range varies from 
 `r min(range(clean$year))` to `r max(range(clean$year))`.
-
 
 # GPS vs argos
 
@@ -194,7 +222,8 @@ mutate(tag.local.identifier = tag.id)
 
 alltrack <- clean %>% 
   left_join(brep) %>% 
-  dplyr::select(-tag.id, -animal.id, - visible, -timestamp, -algorithm.marked.outlier)
+  dplyr::select(-tag.id, -animal.id, - visible, -timestamp, -algorithm.marked.outlier)%>%
+ distinct()
 
 ```
 
@@ -229,44 +258,119 @@ colnames(table_min)<- c("tag.local.identifier", "min")
 dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
   distinct() %>%
   dplyr::mutate(duration = max- min)%>%
-  mutate(dur_no = round(as.numeric(duration)/24,1))
+  mutate(dur_min = round(as.numeric(duration)/60,1))%>%
+  mutate(dur_hrs = round(as.numeric(dur_min)/60,1))%>%
+  mutate(dur_days = round( dur_hrs/24,1))%>%
+  mutate(year = year(min))
 
+dur_data = dur
 
-# table_max <- clean %>% 
-#   dplyr::filter(year < 2024) %>%
-#   dplyr::select(tag.local.identifier, date_time) %>%
-#  # group_by(tag.local.identifier)%>% 
-#   slice_max(date_time, by = tag.local.identifier)
-# colnames(table_max)<- c("tag.local.identifier", "max")
-# 
-# table_min <- clean %>% 
-#     dplyr::filter(year >= 2020) %>%
-#   dplyr::select(tag.local.identifier, date_time) %>%
-#  # group_by(tag.local.identifier)%>% 
-#   slice_min(date_time, by = tag.local.identifier)
-# 
-# colnames(table_min)<- c("tag.local.identifier", "min")
-# 
-# dur <- left_join(table_max, table_min,by = join_by(tag.local.identifier)) %>%
-#   distinct()
-
-#library(ggplot2)
 
 dur_plot <- ggplot(dur, aes(y=factor(tag.local.identifier))) +
-  geom_segment(aes(x=min, xend=max, y=factor(tag.local.identifier),    yend=factor(tag.local.identifier)), size=1)+
+  geom_segment(aes(x=min, xend=max, y=factor(tag.local.identifier), yend=factor(tag.local.identifier)), size=1)+
   xlab("Date") + ylab("Tag") 
 
 dur_plot
 
-
-
-dur_hist <- ggplot(dur, aes(dur_no))+
-  geom_histogram(binwidth = 2) +
+dur_hist <- ggplot(dur, aes(x= dur_days, colour = as.factor(year)))+
+  geom_histogram() + #fill="white", position="dodge") +
+  facet_wrap(~year)+
   xlab("duration (days)") 
 
 dur_hist
 
+p_duration <- ggplot(clean, aes(factor(month), fill = factor(year)))+
+  geom_bar(position = "dodge") +
+  #xlim(1,12)+
+  facet_wrap(~tag.local.identifier)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+p_duration
+
 ```
+
+
+
+# Banding locations
+
+The banding locations were largely in Delaware Bay (included KIMBLESO, MOORES, FORTESCUE,  EASTPIT? East point?) and a location in New Jersey (Pesca) along with a location in Brazil near Porto Alegra (PEIXE).
+This table shows the number of individuals by banding location and year.
+
+
+
+```{r, echo = FALSE}
+cleadid <- clean %>% 
+  dplyr::select(individual.local.identifier, tag.local.identifier) %>%
+  distinct()
+
+dur <- left_join(dur_data, cleadid)
+
+loc <- dur %>%
+  dplyr::select(c(individual.local.identifier , dur_days))%>%
+  mutate(dloc = stringr::str_sub(individual.local.identifier, 1, 4)) %>%
+  mutate(dyr = stringr::str_sub(individual.local.identifier,13, 17)) %>%
+  mutate(dyr = gsub("_", "", dyr))
+
+dep_summary <- loc %>%
+  dplyr::group_by(dloc, dyr)%>%
+  dplyr::summarise( dloc_n = n())
+
+#dep_summary
+
+```
+
+```{r, echo = FALSE}
+knitr::kable(dep_summary)
+```
+
+
+# Number of active tags 
+
+At the last data download, August 1st, all tags are inactive, in that those which have stopped transmitting. 
+
+```{r , echo=FALSE}
+#head(dur_data)
+
+library(dplyr)
+ddur <- dur_data %>%
+  dplyr::mutate(max_month = month(max),
+         max_year = year(max))
+ddur <- ddur %>%
+  dplyr::mutate(active = ifelse(max_month == 9 & max_year == 2023, "y", "n"))
+
+active = ddur %>% filter(active == "y")
+inactive = ddur %>% filter(active == "n")
+
+```
+
+
+Of the `r length(ddur$tag.local.identifier)` tags, `r length(active$tag.local.identifier)` were active, and `r length(inactive$tag.local.identifier)` were inactive.
+
+```{r, echo = FALSE}
+
+#sort(inactive$dur_days)
+
+ggplot(ddur, aes(x = dur_days, y = as.factor(tag.local.identifier), colour=  active))+ 
+  geom_point()
+
+
+sort(ddur$v)
+
+
+ddur <- ddur %>%
+  mutate(dur_class = case_when(
+    dur_days < 29 ~ 1,
+    dur_days >29 & dur_days <60 ~2, 
+    dur_days >60.1 & dur_days <100 ~3, 
+    dur_days >100 ~4,
+    .default = NA
+ ))
+
+```
+
+
+
+
 
 
 
@@ -301,6 +405,160 @@ global
 # global 
 ```
 
+
+```{r, echo = FALSE}
+
+#head(alldat)
+
+
+all <- ddur %>% 
+  dplyr::select(tag.local.identifier , dur_days, year, dur_class)%>%
+  left_join( cleadid)
+  #rename("individual.local.identifier"  = individual.local.identifier.x )
+   
+arf_sf <- left_join(rf_sf, all) 
+
+                        
+# entire north America 
+dd <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = arf_sf, size = 1, colour = "dark blue") +
+  facet_wrap(~dur_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+#dd
+
+
+```
+
+# Plot based on duration class
+
+ 
+```{r, echo = FALSE}
+dd
+```
+
+
+
+
+# Detailed geographic locations vs sub populations
+
+We can estimate the subpopulation level for those individuals with longer duration of tag timing?
+Using the estimated ranges
+- South East US
+- Tierra Del Fuego
+- Northern South America
+- Western Gulf and western Pacific. 
+
+As many of these individuals were banded at Delaware bay, this limits the subpops to SE_US, TDF, N_SA, while the WGWP group are less likely to be detected this far east. 
+
+
+```{r, echo = FALSE}
+
+min_lat <- arf_sf %>% 
+  cbind(st_coordinates(arf_sf))%>%
+  st_drop_geometry() %>%
+  dplyr::select(individual.local.identifier, Y)%>%
+  group_by(individual.local.identifier)%>%
+  slice_min(Y) %>%
+  mutate(pop_class = case_when(
+     Y < -10 ~ "TDF",
+     Y > -10.0001 & Y < 30 ~ "N_SA",
+     #Y >  20.01 & Y < 30 ~ "SE_USA",
+     Y > 30.1 ~ "USA",
+      .default = NA
+))
+
+
+arf <- arf_sf %>%
+  left_join(min_lat, by = "individual.local.identifier" )
+
+
+# entire north America 
+subpop <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = arf, size = 1, colour = "dark blue") +
+  facet_wrap(~pop_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+subpop
+
+```
+
+# Breeding/extent locations: 
+
+
+```{r}
+
+a <- sort(unique(clean$tag.local.identifier ))
+
+pvic <- c(213827, 213830, 213834 ,213836, 213838,  213841)
+
+coats <- c(213831, 213835)
+
+usa <- c(204359, 204362 ,213829, 213839, 213842, 224072, 224076, 224077 ,224078, 224079,224081,
+         224086 ,224087,224091 ,224092, 224094 ,224095,  224096,224098, 224100, 224101 , 224102,
+         224103)
+         
+cari <- c(204361, 224080, 224082, 224088,224097)
+
+sth_am <- c(204351, 204352, 204357, 204364, 204369,  204370,  204375, 224073,  224075, 224083 ,
+            224085, 224089, 224093, 224099, 233781)
+            
+hudson <- c(213828, 213832, 213833, 213837)
+  
+odd <- c(204371, 213840)
+
+
+
+# breeding local 
+
+breedsf <- arf_sf %>% 
+  mutate(breed_class = case_when(
+     tag.local.identifier %in%  usa ~ "usa",
+     tag.local.identifier %in%  cari ~ "caribbean",
+     tag.local.identifier %in% sth_am ~ "sth_america",
+     tag.local.identifier %in%  hudson ~ "hudson",
+     tag.local.identifier %in%  coats ~ "coats_is",
+     tag.local.identifier %in%  pvic ~ "prince_vic",
+     tag.local.identifier %in%  odd  ~ "unknown",
+      .default = NA
+))
+
+
+# entire north America 
+breed_loc <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = breedsf, size = 1, colour = "dark blue") +
+  facet_wrap(~breed_class)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+breed_loc
+     
+
+```
+
+
+
+
+
+
+
 Questions/Notes 
 
 - many tags do not have tracks. All tracks have reference data, but many tags with reference data does not have tracks.  
@@ -315,11 +573,11 @@ List of tags ids with no tracks or reference tags
 
 norefnotrack = fullid %>%
   filter(is.na(individual.local.identifier))%>%
-  filter(animal.id == "") %>% 
+  #filter(animal.id == "") %>% 
   pull(tag.local.identifier)
   
-norefnotrack
-# 30 
+#norefnotrack
+
 
 ```
 
@@ -330,11 +588,11 @@ List of tags ids with no tracks
 
 refnotrack = fullid %>%
   filter(is.na(individual.local.identifier))%>%
-  filter(animal.id != "") %>% 
+  #filter(animal.id != "") %>% 
   pull(tag.local.identifier)
   
-refnotrack
-#20   
+#refnotrack
+  
 
 
 ```
