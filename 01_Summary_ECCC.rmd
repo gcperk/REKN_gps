@@ -28,7 +28,7 @@ library("rnaturalearthdata")
 
 #raw_dat <- file.path("data", "movebank_locations_20230407")
 #raw_dat <- file.path("data", "movebank_locations_20230724")
-raw_dat <- file.path("data", "movebank_locations_20230918")
+raw_dat <- file.path("data", "movebank_locations_20231006")
 
 filesoi <- list.files(raw_dat)
 
@@ -52,7 +52,7 @@ no.ids.ref <- unique(brep$animal.id)
 
 # number of unique tags = no of ids 
 
-# 120 tag ids 
+# 121 tag ids 
 # 71 names animal ids
 
 # read in the location data 
@@ -74,8 +74,8 @@ bout <- bout  %>%
          hour = hour(date_time),
          minute = minute(date_time))
 
-no.tags <- unique(bout$tag.local.identifier)
-no.ids <- unique(bout$individual.local.identifier)
+no.tags <- unique(bout$tag.local.identifier) # 121
+no.ids <- unique(bout$individual.local.identifier) # 62 + blanks 
   
 
 # 60 tracks and track names 
