@@ -28,7 +28,7 @@ library("rnaturalearthdata")
 
 #raw_dat <- file.path("data", "movebank_locations_20230407")
 #raw_dat <- file.path("data", "movebank_locations_20230724")
-raw_dat <- file.path("data", "movebank_locations_20230918")
+raw_dat <- file.path("data", "movebank_locations_20231102")
 
 filesoi <- list.files(raw_dat)
 
@@ -117,7 +117,7 @@ errrors_tble <- clean %>%
 
 # #save out file
 clean_save = clean %>% mutate(proj = "ma_migration")
-saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20230918.rds"))
+saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20231102.rds"))
 
 
 
