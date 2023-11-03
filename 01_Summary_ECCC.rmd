@@ -28,7 +28,8 @@ library("rnaturalearthdata")
 
 #raw_dat <- file.path("data", "movebank_locations_20230407")
 #raw_dat <- file.path("data", "movebank_locations_20230724")
-raw_dat <- file.path("data", "movebank_locations_20231006")
+#raw_dat <- file.path("data", "movebank_locations_20231006")
+raw_dat <- file.path("data", "movebank_locations_20231102")
 
 filesoi <- list.files(raw_dat)
 
@@ -135,8 +136,8 @@ errrors_tble <- bout %>%
   summarise(count = n())
 
 # #save out file
-#clean_save = clean %>% mutate(proj = "ECCC")
-#saveRDS(clean_save, file = file.path("output", "rekn_eccc_20230918.rds"))
+clean_save = clean %>% mutate(proj = "ECCC")
+saveRDS(clean_save, file = file.path("output", "rekn_eccc_20231102.rds"))
 
 
 ```
@@ -557,10 +558,9 @@ global
 ```
 # Plot by duration class 
 
-```{r}
+```{r, echo = FALSE}
 
 #head(alldat)
-
 
 all <- alldat %>% dplyr:: select(individual.local.identifier.x,dur_days, year, active, dur_class,gcd, gcd_class)%>%
   rename("individual.local.identifier"  = individual.local.identifier.x )
@@ -603,7 +603,7 @@ gg <- ggplot(data = Americas) +
 # Plot based on duration class
 
  
-```{r}
+```{r, echo = FALSE}
 dd
 ```
 

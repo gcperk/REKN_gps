@@ -148,8 +148,8 @@ errors <- ggplot(clean, aes(year, fill = visible))+
 
 
 # #save out file
-#clean_save = clean %>% mutate(proj = "atlantic")
-#saveRDS(clean_save, file = file.path("output", "rekn_atlantic_20230918.rds"))
+clean_save = clean %>% mutate(proj = "atlantic")
+saveRDS(clean_save, file = file.path("output", "rekn_atlantic_20231102.rds"))
 
 
 

@@ -32,32 +32,58 @@ raw_dat <- file.path("output")
 
 filesoi <- list.files(raw_dat)
 
-at <- readRDS(file.path(raw_dat, filesoi[4]))
-eccc <- readRDS(file.path(raw_dat, filesoi[5]))
-ma <- readRDS(file.path(raw_dat, filesoi[6]))
+at <- readRDS(file.path(raw_dat, filesoi[2]))
+eccc <- readRDS(file.path(raw_dat, filesoi[4]))
+ma <- readRDS(file.path(raw_dat, filesoi[5]))
 oc <- readRDS(file.path(raw_dat, filesoi[7]))
+mils <- readRDS(file.path(raw_dat, filesoi[6]))
+dom <- readRDS(file.path(raw_dat, filesoi[3]))
+
+all <- bind_rows(at, eccc, ma, oc, dom, mils)
 
 
-all <- rbind(at, eccc, ma, oc)
 
 all <- all %>%
   dplyr::select(-"algorithm.marked.outlier" , -  "argos.lc" ,  - "sensor.type"  , -"lotek.crc.status",   -"gps.fix.type.raw", -  "gps.fix.type.raw"  , -  "visible" , -timestamp )          
 
 clean = all
-#write.csv(clean, file.path("output", "all_rekn_20230918.csv"))
-#saveRDS(clean_save, file = file.path("output", "all_rekn_20230918.rds"))
-```
+write.csv(clean, file.path("output", "xall_rekn_20231102.csv"))
+#saveRDS(clean, file = file.path("output", "xall_rekn_20231102.rds"))
 
-The number of cleaned records we have compiled is `r length(clean$tag.local.identifier)`, from 
-`r length(unique(clean$tag.local.identifier))` individuals.
+
+clean_sf <- st_as_sf(clean, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+#st_write(clean_sf, file.path("output", "xall_rekn_20231102.gpkg"))
+
+```
 
 
 The cleaned date range varies from 
 `r min(range(clean$year))` to `r max(range(clean$year))`.
 
+```{r}
+# 
+# The number of cleaned records we have compiled is `r length(clean$tag.local.identifier)`, from `r length(unique(clean$tag.local.identifier`) individuals.
+# 
+# 
+# The cleaned date range varies from 
+# `r min(range(clean$year))` to `r max(range(clean$year))`.
 
+length(clean$tag.local.identifier)
+length(unique(clean$tag.local.identifier))
+
+
+```
 
 ```{r}
+# 
+# The number of cleaned records we have compiled is `r length(clean$tag.local.identifier)`, from `r length(unique(clean$tag.local.identifier`) individuals.
+# 
+# 
+# The cleaned date range varies from 
+# `r min(range(clean$year))` to `r max(range(clean$year))`.
+
+
+
 
 table_max <- clean %>% 
   dplyr::select(tag.local.identifier,individual.local.identifier, date_time) %>%
@@ -100,7 +126,7 @@ dur_hist
 p_duration <- ggplot(clean, aes(factor(month), fill = factor(year)))+
   geom_bar(position = "dodge") +
   #xlim(1,12)+
-  facet_wrap(~tag.local.identifier)+
+  #facet_wrap(~tag.local.identifier)+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 ```
