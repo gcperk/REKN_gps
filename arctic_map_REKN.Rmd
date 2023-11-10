@@ -1,0 +1,271 @@
+---
+title: "Draft Red Knot GPS tracks"
+author: "Ninox Consulting"
+date: "2023-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(leaflet)
+library(RColorBrewer)
+library(dplyr)
+library(sf)
+library(ggplot2)
+library(stringr)
+library(readxl)
+library(dplyr)
+library("rnaturalearth")
+library("rnaturalearthdata")
+
+
+#raw_dat <- file.path("output")
+
+clean_sf <- read_sf(file.path("output", "xall_rekn_20231102.gpkg"))
+
+```
+
+## GPS tracks 
+
+This draft dataset combines data from several studies. 
+
+```{r pressure, echo=FALSE}
+
+rf_sf <- clean_sf 
+rf_sf_arctic <- cbind(st_coordinates(rf_sf), rf_sf) 
+
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+Americas <- world %>% 
+  dplyr::filter(region_un == "Americas")
+
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 1, colour = "dark blue") +
+  facet_wrap(~proj) +
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-170.15, -30), ylim = c(-60, 80), expand = FALSE)+
+  theme_bw()+
+  theme(strip.text.x = element_text(size = 14),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+
+```
+
+```{r, echo = FALSE,fig.align='center', fig.height=10, fig.width=20}
+
+global
+
+# jpeg(file.path(out.plots,"rufa_map1.jpg"), width = 25, height = 25,units = "cm", res = 210)
+# # 2. Create the plot
+# global 
+# # 3. Close the file
+# dev.off()
+
+```
+
+_Figure 1. Distribution of gps locations from several Red Knot GPS tracking studies (2020 - 2022)._
+
+## Arctic Distribution 
+
+Overview of all GPS locations, within Canada.
+
+```{r, echo = FALSE}
+
+#EPSG:102002
+
+# entire north America 
+can <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 1, colour = "dark blue") +
+  #facet_wrap(~proj) +
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -50), ylim = c(40, 80), expand = FALSE)+
+  theme_bw()+
+  theme(strip.text.x = element_text(size = 14),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+can
+
+```
+
+
+```{r, echo = FALSE, eval = FALSE}
+
+# 
+ rf_sf_arctic <- cbind(st_coordinates(rf_sf), rf_sf) #%>%
+ # filter(Y >40)
+#   st_transform('EPSG:3995')
+# 
+# canam <- Americas %>%
+#   st_transform('EPSG:3995')
+
+# 
+# arctic_proj <- 
+# PROJCS["Canada_Lambert_Conformal_Conic",
+#     GEOGCS["GCS_North_American_1983",
+#         DATUM["North_American_Datum_1983",
+#             SPHEROID["GRS_1980",6378137,298.257222101]],
+#         PRIMEM["Greenwich",0],
+#         UNIT["Degree",0.017453292519943295]],
+#     PROJECTION["Lambert_Conformal_Conic_2SP"],
+#     PARAMETER["False_Easting",0],
+#     PARAMETER["False_Northing",0],
+#     PARAMETER["Central_Meridian",-96],
+#     PARAMETER["Standard_Parallel_1",50],
+#     PARAMETER["Standard_Parallel_2",70],
+#     PARAMETER["Latitude_Of_Origin",40],
+#     UNIT["Meter",1],
+#     AUTHORITY["EPSG","102002"]]
+# 
+# 
+# ggplot(data = rf_sf) +
+#   geom_hex(aes(x = X, y = Y), bins = 100) + 
+#   scale_fill_viridis_c() + 
+#   coord_sf() +
+#   theme_bw()
+
+
+# entire north America 
+can <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  #geom_sf(data = rf_sf, size = 1, colour = "dark blue") +
+  geom_hex(data = rf_sf_arctic, aes(x = X, y = Y), bins = 200) + 
+  #geom_bin_2d(data = rf_sf, aes(x = X, y = Y), bins = 250)+
+  #facet_wrap(~proj) +
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  scale_fill_viridis_c(alpha = 0.7) + 
+  coord_sf(xlim = c(-140, -40), ylim = c(40, 80 ), expand = FALSE)+
+  theme_bw()+
+  theme(strip.text.x = element_text(size = 14),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+can
+
+# 
+# p <- ggplot(rf_sf, aes(x =X, y = Y)) +
+#   # This would create filled polygons that we use for create our polygon
+#   geom_density2d_filled() +
+#   geom_point() +
+#   geom_density_2d()
+# 
+# p
+
+
+```
+
+
+Interactive Map for all REKN locations. 
+
+```{r, echo = FALSE}
+#spp
+
+bdat_sp <-  rf_sf_arctic 
+
+#month_col = sort(unique(bdat_sp$arr_month))
+# palette1 <- colorNumeric(palette = 'viridis', bdat_sp$tag.local.identifier, reverse = TRUE)
+# 
+# pal <- colorFactor(
+#   palette = "viridis",
+#   domain = unique(bdat_sp$tag.local.identifier))
+
+#tags <- unique(bdat_sp$tag.local.identifier)
+
+
+birdmapall <- leaflet(bdat_sp) %>%
+  # add a dark basemap
+  addProviderTiles("CartoDB.DarkMatter") %>%
+  #addProviderTiles(providers$Esri.NatGeoWorldMap)%>%
+  #addProviderTiles("CartoDB") %>%
+  addCircleMarkers(lng = bdat_sp$X, lat = bdat_sp$Y, 
+                   weight = 3, color = "grey", 
+                   fill = TRUE,
+                   label = ~individual.local.identifier,
+                   radius = ~1)%>%
+      setView(lng =  -80,
+              lat = 60,
+              zoom = 3)
+                   #fillColor = ~palette1(bdat_sp$tag.local.identifier))# %>%
+  #popup = ~animal.id) %>%
+  #addPolylines(data = bdat_sp, lng = bdat_sp$X, lat = bdat_sp$Y, 
+  #             color = "grey",  opacity = 0.1, stroke = TRUE) %>%
+  #addLegend("bottomleft", pal = palette1, values = ~bdat_sp$tag.local.identifier,
+  #          title = "Arrival Month",
+   #         opacity = 1) 
+
+birdmapall
+
+```
+
+## Arctic Coastal distribution 
+
+1) Overview
+
+```{r, echo = FALSE}
+
+knitr::include_graphics("output/Arctic_overview.png")
+
+```
+
+2) High Arctic
+
+```{r, echo = FALSE}
+
+knitr::include_graphics("output/High_Arctic.png")
+
+
+```
+
+3) Hudson Bay
+
+
+```{r, echo = FALSE}
+
+knitr::include_graphics("output/HudsonBay.png")
+
+```
+
+
+```{r,echo = FALSE, eval = FALSE}
+
+#spp
+
+#month_col = sort(unique(bdat_sp$arr_month))
+palette1 <- colorNumeric(palette = 'viridis', bdat_sp$tag.local.identifier, reverse = TRUE)
+
+# pal <- colorFactor(
+#   palette = "viridis",
+#   domain = unique(bdat_sp$tag.local.identifier))
+
+tags <- unique(bdat_sp$tag.local.identifier)
+
+
+birdmapall <- leaflet(bdat_sp) %>%
+  # add a dark basemap
+  addProviderTiles("CartoDB.DarkMatter") %>%
+  #addProviderTiles(providers$Esri.NatGeoWorldMap)%>%
+  #addProviderTiles("CartoDB") %>%
+  addCircleMarkers(lng = bdat_sp$X, lat = bdat_sp$Y, 
+                   weight = 3, color = ~palette1(bdat_sp$tag.local.identifier), 
+                   fill = TRUE,
+                   label = ~individual.local.identifier,
+                   radius = ~2,
+                   fillColor = ~palette1(bdat_sp$tag.local.identifier))# %>%
+  #popup = ~animal.id) %>%
+  #addPolylines(data = bdat_sp, lng = bdat_sp$X, lat = bdat_sp$Y, 
+  #             color = "grey",  opacity = 0.1, stroke = TRUE) %>%
+  #addLegend("bottomleft", pal = palette1, values = ~bdat_sp$tag.local.identifier,
+  #          title = "Arrival Month",
+   #         opacity = 1) 
+
+birdmapall
+```
+
