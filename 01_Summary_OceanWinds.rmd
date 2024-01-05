@@ -28,7 +28,7 @@ library("rnaturalearthdata")
 
 #raw_dat <- file.path("data", "movebank_locations_20230407")
 #raw_dat <- file.path("data", "movebank_locations_20230724")
-raw_dat <- file.path("data", "movebank_locations_20231102")
+raw_dat <- file.path("data", "movebank_locations_20231219")
 
 filesoi <- list.files(raw_dat)
 
