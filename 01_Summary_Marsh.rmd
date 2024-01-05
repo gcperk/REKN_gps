@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-## Summary of MA Migration 
+## Summary of Marsh Mispillion Harour DE
 
 ```{r library, warning=FALSE, message=FALSE, include = FALSE}
 library(leaflet)
@@ -28,7 +28,7 @@ library("rnaturalearthdata")
 
 #raw_dat <- file.path("data", "movebank_locations_20230407")
 #raw_dat <- file.path("data", "movebank_locations_20230724")
-raw_dat <- file.path("data", "movebank_locations_20231102")
+raw_dat <- file.path("data", "movebank_locations_20231219")
 
 filesoi <- list.files(raw_dat)
 
@@ -42,7 +42,7 @@ filesoi <- filesoi[2]
 # read in reference data 
 brep <- read.csv(file.path(raw_dat, filesoi_ref))
 brep <- brep %>%
-  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id"))%>%
+  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date ))%>%
 mutate(tag.local.identifier = tag.id)
 
 no.tags.ref <- unique(brep$tag.local.identifier)
@@ -57,7 +57,7 @@ no.ids.ref <- unique(brep$animal.id)
 btemp <- read.csv(file.path(raw_dat, filesoi))
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
-                 # gps.fix.type.raw, lotek.crc.status,
+                 gps.fix.type.raw, lotek.crc.status,
                   sensor.type, individual.local.identifier,
                   argos.lc, algorithm.marked.outlier,
                   tag.local.identifier)
@@ -355,12 +355,6 @@ breed_loc <- ggplot(data = Americas) +
 breed_loc
 
 ```
-
-
-
-Questions? 
-
-- One tag had a much longer duration than the other tags, 236444, although very long gap between last record in 2023 which shows as mortality, so more likely to be shorter in actual time. 
 
 
 
