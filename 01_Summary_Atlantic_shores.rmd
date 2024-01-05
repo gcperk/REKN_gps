@@ -42,12 +42,11 @@ filesoi <- filesoi[2]
 # read in reference data 
 brep <- read.csv(file.path(raw_dat, filesoi_ref))
 brep <- brep %>%
-  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.marker.id","animal.ring.id", "tag.serial.no"))%>%
+  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.marker.id","animal.ring.id", "tag.serial.no", animal.life.stage, deploy.on.measurements,  animal.mass))%>%
 mutate(tag.local.identifier = tag.id)
 
 no.tags.ref <- unique(brep$tag.local.identifier)
 no.ids.ref <- unique(brep$animal.id)
-
 
 
 ids <- brep %>% 
@@ -61,9 +60,11 @@ ids <- brep %>%
 # read in track data
 
 btemp <- read.csv(file.path(raw_dat, filesoi))
+
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
-                  gps.fix.type.raw, lotek.crc.status,
+                  argos.altitude, import.marked.outlier, 
+                  gps.fix.type.raw, lotek.crc.status,lotek.crc.status.text, 
                   sensor.type, individual.local.identifier,
                   argos.lc, algorithm.marked.outlier,
                   tag.local.identifier)
@@ -86,6 +87,27 @@ no.ids <- unique(bout$individual.local.identifier)
 
 # based on the tracks data there are 57 ids and animal tag nos. 
 # all tracks have a animal tag id (ie: )
+
+
+brep #107
+bout
+
+all_dat <- left_join(bout, brep )
+
+head(all_dat)
+
+
+# #save out file
+# #save out file
+clean_save = all_dat %>% mutate(proj = "atlantic")
+saveRDS(clean_save, file = file.path("output", "rekn_atlantic_20231219.rds"))
+
+
+
+
+
+
+
 
 
 ids.track <- bout %>% 
