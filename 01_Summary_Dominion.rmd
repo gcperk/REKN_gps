@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-## Summary of MA Migration 
+## Summary of  Dominion data set 
 
 ```{r library, warning=FALSE, message=FALSE, include = FALSE}
 library(leaflet)
@@ -26,14 +26,12 @@ library("rnaturalearth")
 library("rnaturalearthdata")
 
 
-#raw_dat <- file.path("data", "movebank_locations_20230407")
-#raw_dat <- file.path("data", "movebank_locations_20230724")
-raw_dat <- file.path("data", "movebank_locations_20231102")
+raw_dat <- file.path("data", "movebank_locations_20231219")
 
 filesoi <- list.files(raw_dat)
 
 # data_set3 : spring migration 
-key = "CVOW"
+key = "Red Knot - CVOW"
 
 filesoi <- list.files(raw_dat, pattern = key)
 filesoi_ref <- filesoi[1]
@@ -355,13 +353,6 @@ breed_loc <- ggplot(data = Americas) +
 breed_loc
 
 ```
-
-
-
-Questions? 
-
-- One tag had a much longer duration than the other tags, 236444, although very long gap between last record in 2023 which shows as mortality, so more likely to be shorter in actual time. 
-
 
 
 
