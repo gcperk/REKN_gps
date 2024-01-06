@@ -26,10 +26,8 @@ filesoi <- list.files(raw_dat)
 qbirds <- read.csv(file.path(raw_dat, "aurey_yves", "redknotcan_6687_QuebecRawLotek.csv"))
 
 qb <- qbirds |> 
-  dplyr::select(Tag_ID, Tag_Name, UTC_Date,  UTC_Time,  Latitude,  Longitude,  Location.Quality)%>% 
+  dplyr::select(Tag_ID, UTC_Date,  UTC_Time,  Latitude,  Longitude,  Location.Quality)
   
-
-
 
 # calculate time differences
 qb <- qb %>%
@@ -40,7 +38,12 @@ qb <- qb %>%
          time = hms(UTC_Time),
          hour = hour(time),
          minute = minute(time)) %>% 
-  dplyr::select(-time, UTC_Date)
+  dplyr::select(-time, -UTC_Date) %>%
+  mutate(Tag_ID = gsub("6687:", "",Tag_ID)) %>%
+  rename("animal.id" = Tag_ID,
+       "location.lat" = Latitude,
+       "location.long" = Longitude ,
+      "argos.lc" = Location.Quality)
 
 
 clean_save = qb %>% mutate(proj = "Mingnon")
@@ -74,7 +77,20 @@ jgps <- jd %>%
   mutate(arrive = mdy(Date)) %>%
   mutate(year = year(arrive), 
          month = month(arrive), 
-         day = day(arrive))
+         day = day(arrive)) |> 
+  rename("animal.ring.id" = Band,
+           "animal.mass" = Mass) %>%
+  dplyr::select(-Cohort, -Sequence, -Site, -Period, -Event,  )
+  
+
+
+
+
+# TO do : generate a date_time
+
+
+
+
 
 
 saveRDS(jgps , file = file.path("output", "rekn_johnson_raw_20231219.rds"))
@@ -119,6 +135,16 @@ ndat3v  <- ndat3v   %>%
             -individual.taxon.canonical.name,   -event.id,   -study.local.timestamp,
             -external.temperature, -study.name, -date_time, -tag.voltage, -utm.zone ) %>%
   mutate(proj = "Newstead")
+
+
+
+
+# TO do : generate a date_time
+
+
+
+
+
 
 
 
