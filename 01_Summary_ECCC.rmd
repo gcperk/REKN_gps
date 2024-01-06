@@ -45,7 +45,8 @@ filesoi <- filesoi[2]
 # read in reference data 
 brep <- read.csv(file.path(raw_dat, filesoi_ref))
 brep <- brep %>%
-  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id",tag.model))%>%
+      dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.marker.id","animal.ring.id", "tag.serial.no", animal.life.stage, deploy.on.measurements,  animal.mass,  tag.model, 
+                      tag.manufacturer.name, tag.serial.no))%>%
 mutate(tag.local.identifier = tag.id)
 
 no.tags.ref <- unique(brep$tag.local.identifier)
@@ -60,10 +61,11 @@ no.ids.ref <- unique(brep$animal.id)
 btemp <- read.csv(file.path(raw_dat, filesoi))
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
-                  gps.fix.type.raw, lotek.crc.status,
+                  argos.altitude, import.marked.outlier, 
+                  gps.fix.type.raw, lotek.crc.status,lotek.crc.status.text, 
                   sensor.type, individual.local.identifier,
                   argos.lc, algorithm.marked.outlier,
-                  tag.local.identifier)
+                  tag.local.identifier, height.above.ellipsoid)
 
 
 # calculate time differences
@@ -89,6 +91,22 @@ ids <- bout %>%
 
 ymin = min(range(bout$year))
 ymax = max(range(bout$year))
+
+
+#output all data 
+
+brep #107
+bout
+
+all_dat <- left_join(bout, brep )
+
+head(all_dat)
+
+
+# #save out file
+# #save out file
+clean_save = all_dat %>% mutate(proj = "ECCC")
+saveRDS(clean_save, file = file.path("output", "rekn_eccc_20231219.rds"))
 
 ```
 
