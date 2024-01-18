@@ -3,17 +3,15 @@
 ## 
 
 
-library(leaflet)
-library(RColorBrewer)
-library(dplyr)
+#library(leaflet)
+#library(RColorBrewer)
 library(lubridate)
 library(sf)
-library(adehabitatHR)
+#library(adehabitatHR)
 library(ggplot2)
 library(stringr)
 library(readxl)
 library(dplyr)
-
 
 raw_dat <- file.path("data", "other_dataset")
 
@@ -31,19 +29,24 @@ qb <- qbirds |>
 
 # calculate time differences
 qb <- qb %>%
-  mutate(date_time = ymd(UTC_Date))%>%
+  mutate(date_time = ymd(UTC_Date),
+         timestamp = str_c(UTC_Date, " ", UTC_Time))%>%
+  mutate(date_time = ymd_hms(timestamp )) %>%
   mutate(year = year(date_time )) %>%
   mutate(month = month(date_time ),
          day = day(date_time),
          time = hms(UTC_Time),
          hour = hour(time),
          minute = minute(time)) %>% 
-  dplyr::select(-time, -UTC_Date) %>%
-  mutate(Tag_ID = gsub("6687:", "",Tag_ID)) %>%
-  rename("animal.id" = Tag_ID,
+  dplyr::select(-time) %>%
+  mutate(Tag_ID = gsub("6687:", "", Tag_ID)) %>%
+  rename("tag.id" = Tag_ID,
        "location.lat" = Latitude,
        "location.long" = Longitude ,
-      "argos.lc" = Location.Quality)
+      "argos.lc" = Location.Quality) %>%
+  mutate(animal.id = str_c("MING_", tag.id ),
+         tag.id = as.numeric(tag.id)) %>%
+  dplyr::select(- UTC_Date, -UTC_Time)
 
 
 clean_save = qb %>% mutate(proj = "Mingnon")

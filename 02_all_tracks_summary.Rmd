@@ -14,18 +14,18 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
 ```{r}
 
-library(leaflet)
-library(RColorBrewer)
-library(dplyr)
+#library(leaflet)
+#library(RColorBrewer)
+
 library(lubridate)
 library(sf)
-library(adehabitatHR)
+#library(adehabitatHR)
 library(ggplot2)
 library(stringr)
 library(readxl)
 library(dplyr)
-library("rnaturalearth")
-library("rnaturalearthdata")
+#library("rnaturalearth")
+#library("rnaturalearthdata")
 
 
 raw_dat <- file.path("output")
@@ -34,13 +34,16 @@ filesoi <- list.files(raw_dat)
 
 at <- readRDS(file.path(raw_dat, "rekn_atlantic_20231219.rds"))
 eccc <- readRDS(file.path(raw_dat, "rekn_eccc_20231219.rds"))
-ma <- readRDS(file.path(raw_dat, "rekn_ma_mig_20231219.rds" )) %>%
-  mutate(argos.lc = as.character(argos.lc))
+ma <- readRDS(file.path(raw_dat, "rekn_ma_mig_20231219.rds" )) 
 oc <- readRDS(file.path(raw_dat, "rekn_ocean_20231219.rds"))
 qu <- readRDS(file.path(raw_dat, "rekn_mignon_raw_20231219.rds"))
 dom <- readRDS(file.path(raw_dat, "rekn_dominion_20231219.rds"))
-mils <- readRDS(file.path(raw_dat, "rekn_mispillion_20231219.rds"))%>%
-  mutate(argos.lc = as.character(argos.lc))
+
+
+mils <- readRDS(file.path(raw_dat, "rekn_mispillion_20231219.rds"))
+
+
+
 john <- readRDS(file.path(raw_dat, "rekn_johnson_raw_20231219.rds"))
 sth <- readRDS(file.path(raw_dat, "rekn_spring_usfws_20231219.rds"))%>%
   mutate(argos.lc = as.character(argos.lc))
@@ -48,7 +51,14 @@ new <- readRDS(file.path(raw_dat, "rekn_newstead_20231219.rds"))
 
 
 
-all <- bind_rows(at, eccc, ma, oc, qu, dom, mils, john, sth, new)
+all <- bind_rows(at, eccc, ma, oc, qu, dom, mils)
+
+all <- all %>%
+  dplyr::select(-"algorithm.marked.outlier",
+                 -"height.above.ellipsoid") 
+
+
+, ma, oc, qu, dom, mils, john, sth, new)
 
 
 all <- all %>%

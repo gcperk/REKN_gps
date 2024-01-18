@@ -42,8 +42,8 @@ brep <- read.csv(file.path(raw_dat, filesoi_ref))
 
 
 brep <- brep %>%
-  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id",animal.life.stage,
-                  animal.comments, tag.model, tag.manufacturer.name ))%>%
+#  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id",animal.life.stage,
+#                  animal.comments, tag.model, tag.manufacturer.name ))%>%
 mutate(tag.local.identifier = tag.id)
 
 no.tags.ref <- unique(brep$tag.local.identifier)
@@ -58,11 +58,11 @@ no.ids.ref <- unique(brep$animal.id)
 btemp <- read.csv(file.path(raw_dat, filesoi))
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
+                  argos.altitude,  
                   #gps.fix.type.raw, lotek.crc.status,
                   sensor.type, individual.local.identifier,
                   argos.lc, algorithm.marked.outlier,
                   tag.local.identifier)
-
 
 # calculate time differences
 bout <- bout  %>%
@@ -98,7 +98,19 @@ all_dat <- left_join(bout, brep )
 head(all_dat)
 all_dat<- all_dat %>%
   filter(!is.na(location.long)) %>%
-  filter(!is.na(location.lat))
+  filter(!is.na(location.lat))%>%
+mutate(animal.marker.id = animal.id)
+
+
+
+all_dat <- all_dat %>% 
+  dplyr::select(-individual.local.identifier, -tag.local.identifier, -animal.taxon, -animal.taxon.detail,
+         -deploy.off.date) %>% 
+  mutate(animal.id = str_c("dom_",  tag.id , "_", year(deploy.on.date)))
+  
+
+
+
 
 
 # #save out file
