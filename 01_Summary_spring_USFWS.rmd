@@ -53,16 +53,11 @@ no.ids.ref <- unique(brep$animal.id)
 # number of unique tags = no of ids 
 
 
-
-
-
-
-
 btemp <- read.csv(file.path(raw_dat, filesoi))
 bout <- btemp %>%
     dplyr::select(visible, timestamp, location.long, location.lat,
                   argos.altitude, import.marked.outlier, 
-                  gps.fix.type.raw, lotek.crc.status,lotek.crc.status.text, 
+                  gps.fix.type.raw, lotek.crc.status, 
                   sensor.type, individual.local.identifier,
                   argos.lc, algorithm.marked.outlier,
                   tag.local.identifier, height.above.ellipsoid)
@@ -94,9 +89,12 @@ ymax = max(range(bout$year))
 brep #107
 bout
 
-all_dat <- left_join(bout, brep )
+all_dat <- left_join(bout, brep ) %>%
+  dplyr::select(-tag.local.identifier, -individual.local.identifier, -height.above.ellipsoid) %>%
+  dplyr::mutate(argos.lc = as.character(argos.lc))
 
 head(all_dat)
+
 
 
 # #save out file

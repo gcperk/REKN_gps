@@ -26,6 +26,7 @@ qbirds <- read.csv(file.path(raw_dat, "aurey_yves", "redknotcan_6687_QuebecRawLo
 qb <- qbirds |> 
   dplyr::select(Tag_ID, UTC_Date,  UTC_Time,  Latitude,  Longitude,  Location.Quality)
   
+length(qb$Tag_ID)
 
 # calculate time differences
 qb <- qb %>%
@@ -82,18 +83,28 @@ jgps <- jd %>%
          month = month(arrive), 
          day = day(arrive)) |> 
   rename("animal.ring.id" = Band,
-           "animal.mass" = Mass) %>%
-  dplyr::select(-Cohort, -Sequence, -Site, -Period, -Event,  )
+           "animal.mass" = Mass,
+         "lotek.crc.status" = CRC, 
+         "sensor.type"  = data_type,
+         "gps.fix.type.raw" = Accuracy,
+         "tag.id" = TagID,
+         "animal.sex" = Sex,
+         "animal.comments" = Note) %>%
+  dplyr::select(-Cohort, -Sequence, -Site, -Period, -Event)%>%
+  mutate(Time = case_when(
+           is.na(Time) ~ "11:00:00",
+           Time == "na" ~"11:00:00",
+           TRUE ~ as.character(Time))) %>%
+  mutate(Time2 = hms(Time),
+         animal.ring.id = as.character(animal.ring.id)) %>%
+  mutate(hour = hour(Time2), 
+         minute= minute(Time2))%>%
+  mutate(timestamp = str_c(as.character(arrive), " ", as.character(Time)))%>%
+  mutate(date_time = ymd_hms(timestamp))
   
-
-
-
-
-# TO do : generate a date_time
-
-
-
-
+#str(jgps)
+jgps <- jgps |> 
+  dplyr::select(-TagID2, -LocType_new, -Corr, -Time2, -Time, -Long_new, -LocType_new, -LocType, - Date, -arrive)
 
 
 saveRDS(jgps , file = file.path("output", "rekn_johnson_raw_20231219.rds"))
@@ -102,10 +113,14 @@ saveRDS(jgps , file = file.path("output", "rekn_johnson_raw_20231219.rds"))
 #########################################################################
 # 3)  (Newstead)
 
-ndat <- read_xlsx(file.path(raw_dat, "Newstead","CBBEP_Newstead_Red Knot Gulf to Arctic.xlsx"), 
+raw_dat <- file.path("data", "other_dataset")
+
+filesoi <- list.files(raw_dat)
+
+ndatr <- read_xlsx(file.path(raw_dat, "Newstead","CBBEP_Newstead_Red Knot Gulf to Arctic.xlsx"), 
                   .name_repair = "universal")
 
-ndat <- ndat %>%
+ndat <- ndatr %>%
   #filter(`lotek.crc.status.text` != "OK(corrected)")  %>%
   rename("animal.id" = individual.local.identifier,
          "location.lat" = location.lat,
@@ -121,7 +136,7 @@ ndat <- ndat %>%
   mutate(hour = hour(arrive),
         minute = minute(arrive)) %>% 
   dplyr::select(-Date, -arrive) %>%
-  dplyr::select( -event.id, -study.name, -individual.taxon.canonical.name) %>%
+  dplyr::select( -event.id, -study.name, -individual.taxon.canonical.name,-lotek.crc.status.text) %>%
   mutate(timestamp = as.character(timestamp))
 
 
@@ -136,22 +151,21 @@ ndat3v  <- ndat3v   %>%
          minute = minute(date_time))%>% 
   dplyr::select(-utm.northing, -utm.easting ,  -study.timezone,  -mortality.status, tag.voltage,
             -individual.taxon.canonical.name,   -event.id,   -study.local.timestamp,
-            -external.temperature, -study.name, -date_time, -tag.voltage, -utm.zone ) %>%
-  mutate(proj = "Newstead")
+            -external.temperature, -study.name, -date_time, -tag.voltage, -utm.zone, -lotek.crc.status.text ) %>%
+  mutate(proj = "Newstead") %>%
+  rename("animal.id" = individual.local.identifier)
 
 
 
 
 # TO do : generate a date_time
 
+head(ndat)
 
+head(ndat3v) 
 
-
-
-
-
-
-ndat_out <- bind_rows(ndat, ndat3v)
+ndat_out <- bind_rows(ndat, ndat3v) %>%
+  dplyr::select(-height.above.ellipsoid, -data_type, -tag.local.identifier)
 
 saveRDS(ndat_out, file = file.path("output", "rekn_newstead_20231219.rds"))
 

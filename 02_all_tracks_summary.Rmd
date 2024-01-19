@@ -32,70 +32,154 @@ raw_dat <- file.path("output")
 
 filesoi <- list.files(raw_dat)
 
-at <- readRDS(file.path(raw_dat, "rekn_atlantic_20231219.rds"))
-eccc <- readRDS(file.path(raw_dat, "rekn_eccc_20231219.rds"))
-ma <- readRDS(file.path(raw_dat, "rekn_ma_mig_20231219.rds" )) 
-oc <- readRDS(file.path(raw_dat, "rekn_ocean_20231219.rds"))
-qu <- readRDS(file.path(raw_dat, "rekn_mignon_raw_20231219.rds"))
-dom <- readRDS(file.path(raw_dat, "rekn_dominion_20231219.rds"))
+at <- readRDS(file.path(raw_dat, "rekn_atlantic_20231219.rds")) %>% 
+  dplyr::select(-algorithm.marked.outlier, -import.marked.outlier) %>%
+  mutate(tag.id = as.character(tag.id))
+eccc <- readRDS(file.path(raw_dat, "rekn_eccc_20231219.rds"))%>%
+  mutate(tag.id = as.character(tag.id))
+ma <- readRDS(file.path(raw_dat, "rekn_ma_mig_20231219.rds" )) %>%
+  dplyr::select(-attachment.type, -animal.taxon.detail)%>%
+  mutate(tag.id = as.character(tag.id))
+oc <- readRDS(file.path(raw_dat, "rekn_ocean_20231219.rds"))%>%
+  mutate(tag.id = as.character(tag.id))
+qu <- readRDS(file.path(raw_dat, "rekn_mignon_raw_20231219.rds"))%>%
+  mutate(tag.id = as.character(tag.id))
+dom <- readRDS(file.path(raw_dat, "rekn_dominion_20231219.rds"))%>%
+  dplyr::select(-deployment.id)%>%
+  mutate(tag.id = as.character(tag.id))
+mils <- readRDS(file.path(raw_dat, "rekn_mispillion_20231219.rds"))%>%
+  mutate(tag.id = as.character(tag.id))
+john <- readRDS(file.path(raw_dat, "rekn_johnson_raw_20231219.rds"))%>%
+  mutate(tag.id = as.character(tag.id))
+sth <- readRDS(file.path(raw_dat, "rekn_sthcarolina_20231219.rds")) %>%
+  mutate(tag.id = as.character(tag.id))
+spring <- readRDS(file.path(raw_dat, "rekn_spring_usfws_20231219.rds"))%>%
+  mutate(tag.id = as.character(tag.id)) 
+new <- readRDS(file.path(raw_dat, "rekn_newstead_20231219.rds")) %>%
+  mutate(tag.id = animal.id) %>%
+  mutate(tag.id = as.character(tag.id))
 
 
-mils <- readRDS(file.path(raw_dat, "rekn_mispillion_20231219.rds"))
+all <- bind_rows(at, eccc, ma, oc, qu, dom, mils, john, sth, spring, new)
+
+# 
+# 
+# all <- all %>%
+#   dplyr::select(-"algorithm.marked.outlier",
+#                  -"height.above.ellipsoid") 
+# 
+# all <- all %>%
+#   dplyr::select(-"algorithm.marked.outlier" 
+#                 -"import.marked.outlier", -"height.above.ellipsoid", -"tag.mass", 
+#                 ) 
+# 
 
 
 
-john <- readRDS(file.path(raw_dat, "rekn_johnson_raw_20231219.rds"))
-sth <- readRDS(file.path(raw_dat, "rekn_spring_usfws_20231219.rds"))%>%
-  mutate(argos.lc = as.character(argos.lc))
-new <- readRDS(file.path(raw_dat, "rekn_newstead_20231219.rds"))
-
-
-
-all <- bind_rows(at, eccc, ma, oc, qu, dom, mils)
-
-all <- all %>%
-  dplyr::select(-"algorithm.marked.outlier",
-                 -"height.above.ellipsoid") 
-
-
-, ma, oc, qu, dom, mils, john, sth, new)
-
-
-all <- all %>%
-  dplyr::select(-"algorithm.marked.outlier" ,-"lotek.crc.status.text",
-                -"import.marked.outlier", -"height.above.ellipsoid", -"tag.mass", 
-                ) 
-
-
-
-
-
+#length(all$visible) #103256
 
 # write out: 
-write.csv(all , file.path("output", "xall_rekn_20231219.csv"))
+write.csv(all , file.path("output", "xall_rekn_20240119.csv"), row.names = F)
+allsp = all %>% 
+  filter(!is.na(location.long), 
+         !is.na(location.lat))
+clean_sf <- st_as_sf(allsp, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "xall_rekn_20240119.gpkg"), append = F)
+
+
+########################
+
+# subsets
+
+########################
+
+
+
+# remove columns
+clean = all %>% 
+  dplyr::select(-argos.altitude, -import.marked.outlier, -deploy.on.date, 
+                -deployment.comments, -deploy.on.measurements, -study.site,
+                -height.above.ellipsoid,-capture.timestamp,-deploy.on.latitude,
+                -deploy.on.longitude, -deploy.on.person, -deployment.id, -deploy.on.date,
+                -attachment.type, -algorithm.marked.outlier, -visible, -timestamp,
+                -import.marked.outlier)
+length(clean$location.long) 
+
+clean = clean %>% 
+  filter(!is.na(location.long), 
+         !is.na(location.lat))
+#length(clean$location.long)
+#[1]  81949
+
+# filter by accuracy levels 
+unique(clean$argos.lc) #""  "2" "1" "3" "Z" "B" "0" "A" NA 
+
+clean <- clean %>% 
+  dplyr::mutate(argos.lc = case_when(
+    is.na(argos.lc) ~ "",
+    TRUE ~ as.character(argos.lc)))%>%
+  dplyr::filter(argos.lc != "Z")#%>%
+  #dplyr::filter(argos.lc != "A")%>% 
+  #dplyr::filter(argos.lc != "B")
+
+# filter by accuracy levels 
+unique(clean$lotek.crc.status) # "G"  "F"  "" "C" NA"OK" "OK(corrected)"
+
+clean <- clean %>% 
+  dplyr::mutate(lotek.crc.status = case_when(
+    is.na(lotek.crc.status) ~ "",
+    TRUE ~ as.character(lotek.crc.status)))%>%
+  dplyr::filter(lotek.crc.status != "E")
+
+
+#length(clean$location.long)
+# 79751
+
+# clean by date
+range(clean$year, na.rm = T)
+
+clean = clean %>% 
+  filter(year <2025)
+
+#length(clean$location.long)
+# 79751
+
+
+range(clean$year)
 
 
 
 
-
-
-
-
-
-
-
-
-
-all <- all %>%
-  dplyr::select(-"algorithm.marked.outlier" , -  "argos.lc" ,  - "sensor.type"  , -"lotek.crc.status",   -"gps.fix.type.raw", -  "gps.fix.type.raw"  , -  "visible" , -timestamp )          
-
-clean = all
-write.csv(clean, file.path("output", "xall_rekn_20231102.csv"))
+write.csv(clean, file.path("output", "xsubset_rekn_20240119.csv"))
 #saveRDS(clean, file = file.path("output", "xall_rekn_20231102.rds"))
 
 
 clean_sf <- st_as_sf(clean, coords = c("location.long", "location.lat"), crs = st_crs(4326))
-#st_write(clean_sf, file.path("output", "xall_rekn_20231102.gpkg"))
+st_write(clean_sf, file.path("output", "xclean_rekn_20240119.gpkg"), append = F)
+
+
+
+
+
+# ring id 
+
+unique(clean$animal.ring.id)
+
+rids <- clean %>%
+  dplyr::select(animal.ring.id, proj) %>% 
+  group_by(animal.ring.id)%>%
+  count()
+
+
+
+
+write.csv(rids, file.path("output", "rekn_ringid.csv"))
+
+
+
+
+
+
 
 ```
 
@@ -111,7 +195,9 @@ The cleaned date range varies from
 # The cleaned date range varies from 
 # `r min(range(clean$year))` to `r max(range(clean$year))`.
 
-length(clean$tag.local.identifier)
+
+
+length(clean$tag.id)
 length(unique(clean$tag.local.identifier))
 
 

@@ -43,8 +43,8 @@ filesoi <- filesoi[2]
 brep <- read.csv(file.path(raw_dat, filesoi_ref))
 
 brep <- brep %>%
-  dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id",
-                  tag.manufacturer.name, tag.mass,   tag.model))%>%
+  # dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id",
+  #                 tag.manufacturer.name, tag.mass,   tag.model))%>%
 mutate(tag.local.identifier = tag.id)
 
 no.tags.ref <- unique(brep$tag.local.identifier)
@@ -93,9 +93,18 @@ ymax = max(range(bout$year))
 brep 
 bout
 
-all_dat <- left_join(bout, brep )
+all_dat <- left_join(bout, brep )%>%
+  mutate(argos.lc = as.character(argos.lc)) %>%
+  rename("animal.marker.id" = animal.id)
 
 head(all_dat)
+
+all_dat <- all_dat %>% 
+  dplyr::select(-individual.local.identifier, -tag.local.identifier, -animal.taxon, 
+         -deploy.off.date)%>%
+  mutate(animal.id = deployment.id)
+
+
 
 
 # #save out file

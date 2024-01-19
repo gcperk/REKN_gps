@@ -46,7 +46,8 @@ brep <- brep %>%
 #                   tag.manufacturer.name, tag.mass,   tag.model, tag.serial.no))%>%
 mutate(tag.local.identifier = tag.id,
   animal.marker.id = animal.id, 
-  animal.id = str_c("MISP_", tag.id, "_2023"))
+  animal.id = str_c("MISP_", tag.id, "_2023")) %>% 
+  mutate(animal.marker.id = str_sub(animal.marker.id, -9, -1))
 
 no.tags.ref <- unique(brep$tag.local.identifier)
 no.ids.ref <- unique(brep$animal.id)
