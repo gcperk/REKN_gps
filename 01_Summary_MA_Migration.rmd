@@ -47,11 +47,8 @@ brep <- brep %>%
   #                 tag.manufacturer.name, tag.mass,   tag.model))%>%
 mutate(tag.local.identifier = tag.id)
 
-no.tags.ref <- unique(brep$tag.local.identifier)
-no.ids.ref <- unique(brep$animal.id)
-
-
-
+#no.tags.ref <- unique(brep$tag.local.identifier)
+#no.ids.ref <- unique(brep$animal.id)
 
 
 #filesoi <- list.files(raw_dat, pattern = key)
@@ -64,30 +61,31 @@ bout <- btemp %>%
                   argos.lc, algorithm.marked.outlier,
                   tag.local.identifier, gps.fix.type.raw, 
                   import.marked.outlier,
-                  height.above.ellipsoid)
+                  height.above.ellipsoid)%>%
+  mutate(date_time = ymd_hms(timestamp))
 
-
-# calculate time differences
-bout <- bout  %>%
-  mutate(date_time = ymd_hms(timestamp))%>%
-  mutate(year = year(date_time )) %>%
-  mutate(month = month(date_time ),
-         day = day(date_time),
-         hour = hour(date_time),
-         minute = minute(date_time))
-
-no.tags <- unique(bout$tag.local.identifier)
-no.ids <- unique(bout$individual.local.identifier)
-  
-
-ids <- bout %>%
-  dplyr::select(tag.local.identifier, individual.local.identifier) %>%
-  group_by(tag.local.identifier, individual.local.identifier)%>%
-  summarise(n = n())
-  
-
-ymin = min(range(bout$year))
-ymax = max(range(bout$year))
+# 
+# # calculate time differences
+# bout <- bout  %>%
+#   mutate(date_time = ymd_hms(timestamp))%>%
+#   mutate(year = year(date_time )) %>%
+#   mutate(month = month(date_time ),
+#          day = day(date_time),
+#          hour = hour(date_time),
+#          minute = minute(date_time))
+# 
+# no.tags <- unique(bout$tag.local.identifier)
+# no.ids <- unique(bout$individual.local.identifier)
+#   
+# 
+# ids <- bout %>%
+#   dplyr::select(tag.local.identifier, individual.local.identifier) %>%
+#   group_by(tag.local.identifier, individual.local.identifier)%>%
+#   summarise(n = n())
+#   
+# 
+# ymin = min(range(bout$year))
+# ymax = max(range(bout$year))
 
 
 brep 
@@ -95,21 +93,41 @@ bout
 
 all_dat <- left_join(bout, brep )%>%
   mutate(argos.lc = as.character(argos.lc)) %>%
-  rename("animal.marker.id" = animal.id)
+  rename("animal.marker.id" = animal.id)%>%
+  dplyr::select(-attachment.type, -animal.taxon.detail)%>%
+  mutate(tag.id = as.character(tag.id))%>%
+  mutate(animal.id = deployment.id)
 
 head(all_dat)
 
+all_dat <- all_dat %>%
+ mutate(tag.id = as.character(tag.id)) %>%
+  dplyr::mutate(lotek.crc.status = case_when(
+    is.na(lotek.crc.status) ~ "",
+    TRUE ~ as.character(lotek.crc.status)))%>%
+  dplyr::filter(lotek.crc.status != "E")%>%
+  dplyr::mutate(argos.lc = case_when(
+    is.na(argos.lc) ~ "",
+    TRUE ~ as.character(argos.lc)))%>%
+  dplyr::filter(argos.lc != "Z")%>%
+  filter(!is.na(location.long), 
+         !is.na(location.lat)) %>%
+  mutate(deploy.on.latitude = 39.20075, 
+         deploy.on.longitude = -75.0255,
+         study.site = "THOMP")
+
+
+
 all_dat <- all_dat %>% 
   dplyr::select(-individual.local.identifier, -tag.local.identifier, -animal.taxon, 
-         -deploy.off.date)%>%
-  mutate(animal.id = deployment.id)
-
+         -deploy.off.date, - deployment.id, -animal.comments)
+ 
 
 
 
 # #save out file
 clean_save = all_dat %>% mutate(proj = "ma_migration")
-saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20231219.rds"))
+saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20240101.rds"))
 
 
 ```

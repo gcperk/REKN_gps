@@ -46,16 +46,14 @@ brep <- read.csv(file.path(raw_dat, filesoi_ref))
 #                   tag.serial.no,tag.manufacturer.name, tag.model))%>%
  mutate(tag.local.identifier = tag.id)
 
-
-
-
-no.tags.ref <- unique(brep$tag.local.identifier)
-no.ids.ref <- unique(brep$animal.id)
-
-
-ids <- brep %>% 
-  dplyr::select(tag.local.identifier, animal.id) %>%
-  distinct()
+# 
+# no.tags.ref <- unique(brep$tag.local.identifier)
+# no.ids.ref <- unique(brep$animal.id)
+# 
+# 
+# ids <- brep %>% 
+#   dplyr::select(tag.local.identifier, animal.id) %>%
+#   distinct()
 
 # based on the reference data there is 
 # 107 unique tag ids (numeric) and 77 unique animal ids *ie NBRI_233781_2022
@@ -71,21 +69,22 @@ bout <- btemp %>%
                   gps.fix.type.raw, lotek.crc.status,
                   sensor.type, individual.local.identifier,
                   argos.lc, 
-                  tag.local.identifier)
+                  tag.local.identifier)%>%
+  mutate(date_time = ymd_hms(timestamp))
 
 
 # calculate time differences
-bout <- bout %>%
-  mutate(date_time = ymd_hms(timestamp))%>%
-  mutate(year = year(date_time )) %>%
-  mutate(month = month(date_time ),
-         day = day(date_time),
-         hour = hour(date_time),
-         minute = minute(date_time))
-
-no.tags <- unique(bout$tag.local.identifier)
-no.ids <- unique(bout$individual.local.identifier)
-  
+#bout <- bout %>%
+#  mutate(date_time = ymd_hms(timestamp))%>%
+#   mutate(year = year(date_time )) %>%
+#   mutate(month = month(date_time ),
+#          day = day(date_time),
+#          hour = hour(date_time),
+#          minute = minute(date_time))
+# 
+# no.tags <- unique(bout$tag.local.identifier)
+# no.ids <- unique(bout$individual.local.identifier)
+#   
 
 # which ids are missing tracking data? 
 
@@ -93,23 +92,65 @@ no.ids <- unique(bout$individual.local.identifier)
 # all tracks have a animal tag id (ie: )
 
 
-brep #107
-bout
+#brep #107
+#bout
 
 all_dat <- left_join(bout, brep )
 
-head(all_dat)
+head(all_dat)#2089
 
 
 all_dat <- all_dat %>% 
   dplyr::select(-individual.local.identifier, -tag.local.identifier, -animal.taxon, 
-         -deploy.off.date)
+         -deploy.off.date, -algorithm.marked.outlier, -import.marked.outlier) %>%
+  mutate(tag.id = as.character(tag.id)) %>%
+  filter() %>% 
+  dplyr::mutate(lotek.crc.status = case_when(
+    is.na(lotek.crc.status) ~ "",
+    TRUE ~ as.character(lotek.crc.status)))%>%
+  dplyr::filter(lotek.crc.status != "E")%>%
+  dplyr::mutate(argos.lc = case_when(
+    is.na(argos.lc) ~ "",
+    TRUE ~ as.character(argos.lc)))%>%
+  dplyr::filter(argos.lc != "Z")
+
+unique(all_dat$animal.id)
+
+
+library(stringr)
+
+all_dat <- all_dat %>% 
+  mutate(study.site1 = substr( animal.id, start = 1, stop = 4)) %>%
+  dplyr::mutate(deploy.on.latitude = case_when(
+    study.site1 == "NBRI" ~ 39.436,
+    study.site1 == "Thom" ~ 39.20075,
+    study.site1 == "Norb" ~ 39.20075)) %>%
+  dplyr::mutate(deploy.on.longitude = case_when(
+    study.site1 == "NBRI" ~ -74.346,
+    study.site1 == "Thom" ~ -75.0255,
+    study.site1 == "Norb" ~ -75.0255))%>%
+  mutate(study.site = study.site1) %>%
+  dplyr::select(-study.site1)
+ 
+ 
+# 
+# 
+# # Nbrig latitutde/ longitide 
+# Noth Brigatine 
+# -74.346 39.436
+# 
+# 
+# # Thom = thompson beach 
+# -75.0255 , 39.20075
+# 
+# # norb 
+#    -75.0255 , 39.20075
 
 
 # #save out file
 # #save out file
 clean_save = all_dat %>% mutate(proj = "atlantic")
-saveRDS(clean_save, file = file.path("output", "rekn_atlantic_20231219.rds"))
+saveRDS(clean_save, file = file.path("output", "rekn_atlantic_20240101.rds"))
 
 
 

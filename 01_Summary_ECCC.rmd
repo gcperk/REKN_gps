@@ -48,9 +48,9 @@ brep <- brep %>%
       # dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.marker.id","animal.ring.id", "tag.serial.no", animal.life.stage, deploy.on.measurements,  animal.mass,  tag.model, 
       #                 tag.manufacturer.name, tag.serial.no))%>%
 mutate(tag.local.identifier = tag.id)
-
-no.tags.ref <- unique(brep$tag.local.identifier)
-no.ids.ref <- unique(brep$animal.id)
+# 
+# no.tags.ref <- unique(brep$tag.local.identifier)
+# no.ids.ref <- unique(brep$animal.id)
 
 # number of unique tags = no of ids 
 
@@ -65,38 +65,39 @@ bout <- btemp %>%
                   gps.fix.type.raw, lotek.crc.status,
                   sensor.type, individual.local.identifier,
                   argos.lc, algorithm.marked.outlier,
-                  tag.local.identifier, height.above.ellipsoid)
+                  tag.local.identifier, height.above.ellipsoid)%>%
+  mutate(date_time = ymd_hms(timestamp))
 
-
-# calculate time differences
-bout <- bout  %>%
-  mutate(date_time = ymd_hms(timestamp))%>%
-  mutate(year = year(date_time )) %>%
-  mutate(month = month(date_time ),
-         day = day(date_time),
-         hour = hour(date_time),
-         minute = minute(date_time))
-
-no.tags <- unique(bout$tag.local.identifier) # 121
-no.ids <- unique(bout$individual.local.identifier) # 62 + blanks 
-  
+# 
+# # calculate time differences
+# bout <- bout  %>%
+#   mutate(date_time = ymd_hms(timestamp))%>%
+#   mutate(year = year(date_time )) %>%
+#   mutate(month = month(date_time ),
+#          day = day(date_time),
+#          hour = hour(date_time),
+#          minute = minute(date_time))
+# 
+# no.tags <- unique(bout$tag.local.identifier) # 121
+# no.ids <- unique(bout$individual.local.identifier) # 62 + blanks 
+#   
 
 # 60 tracks and track names 
-
-ids <- bout %>%
-  dplyr::select(tag.local.identifier, individual.local.identifier) %>%
-  group_by(tag.local.identifier, individual.local.identifier)%>%
-  summarise(n = n())
-  
-
-ymin = min(range(bout$year))
-ymax = max(range(bout$year))
+# 
+# ids <- bout %>%
+#   dplyr::select(tag.local.identifier, individual.local.identifier) %>%
+#   group_by(tag.local.identifier, individual.local.identifier)%>%
+#   summarise(n = n())
+#   
+# 
+# ymin = min(range(bout$year))
+# ymax = max(range(bout$year))
 
 
 #output all data 
 
-brep #107
-bout
+#brep #107
+#bout
 
 all_dat <- left_join(bout, brep )
 
@@ -104,13 +105,62 @@ head(all_dat)
 
 all_dat <- all_dat %>% 
   dplyr::select(-individual.local.identifier, -tag.local.identifier, -animal.taxon, 
-         -deploy.off.date)
+         -deploy.off.date, -import.marked.outlier, -algorithm.marked.outlier, 
+         -height.above.ellipsoid) %>%
+  mutate(tag.id = as.character(tag.id)) %>%
+  filter() %>% 
+  dplyr::mutate(lotek.crc.status = case_when(
+    is.na(lotek.crc.status) ~ "",
+    TRUE ~ as.character(lotek.crc.status)))%>%
+  dplyr::filter(lotek.crc.status != "E")%>%
+  dplyr::mutate(argos.lc = case_when(
+    is.na(argos.lc) ~ "",
+    TRUE ~ as.character(argos.lc)))%>%
+  dplyr::filter(argos.lc != "Z")%>%
+  filter(!is.na(location.long), 
+         !is.na(location.lat))%>%
+  mutate(tag.model = case_when(
+    tag.model == "gps-pinpoint" ~ "Lotek PinPoint GPS-Argos 75", 
+    tag.model == "PinPoint 75" ~ "Lotek PinPoint GPS-Argos 75", 
+    tag.model ==  "Sunbird" ~ "Sunbird Solar Argos",
+    tag.model ==  "sunbird" ~ "Sunbird Solar Argos",
+    .default = as.character(tag.model)))
+
+
+
+unique(all_dat$animal.id)
+
+#"FORTESCU" "KIMBLESO" "MOORES"   "EASTPIT"  "PEIXE"    "NBRIG"   
+
+all_dat <- all_dat %>% 
+  dplyr::mutate(deploy.on.latitude = case_when(
+    study.site == "FORTESCU" ~ 39.0322,
+    study.site == "KIMBLESO" ~ 39.20075,
+    study.site == "MOORES" ~ 39.20075,
+     study.site == "EASTPIT" ~ 39.1958,
+    study.site == "PEIXE" ~ -31.401,
+    study.site == "NBRIG" ~ 39.436)) %>%
+  dplyr::mutate(deploy.on.longitude = case_when(
+        study.site == "FORTESCU" ~ -74.7948,
+    study.site == "KIMBLESO" ~ -75.0255,
+    study.site == "MOORES" ~ -75.0255,
+    study.site == "EASTPIT" ~ -75.02589,
+    study.site == "PEIXE" ~  -51.066,
+    study.site == "NBRIG" ~ -74.346))
+ 
+ 
+# # Thom = thompson beach 
+# -75.0255 , 39.20075
+#"#PEIXE"
+#-31.401, -51.066
+
+
 
 
 # #save out file
 # #save out file
 clean_save = all_dat %>% mutate(proj = "ECCC")
-saveRDS(clean_save, file = file.path("output", "rekn_eccc_20231219.rds"))
+saveRDS(clean_save, file = file.path("output", "rekn_eccc_20240101.rds"))
 
 ```
 
