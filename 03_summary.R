@@ -1,11 +1,8 @@
 # summary of data 
 
-#library(leaflet)
-#library(RColorBrewer)
 library(lubridate)
 library(sp)
 library(sf)
-#library(adehabitatHR)
 library(ggplot2)
 library(stringr)
 library(readxl)
@@ -13,13 +10,7 @@ library(foreach)
 library(tidyverse)
 library(viridis)
 library(dplyr)
-#library(mapview)
-#library("rnaturalearth")
-#library("rnaturalearthdata")#
 
-#ibrary(tmap)    # for static and interactive maps
-#devtools::install_github("ropensci/rnaturalearthhires")
-#library("rnaturalearthhires")#
 
 
 raw_dat <- file.path("output")
@@ -27,6 +18,14 @@ out_dat <- file.path("output", "report")
 
 bdat <- read.csv(file.path(raw_dat ,"xsubset_rekn_20240119.csv"))
 
+model.id <- bdat |> 
+  select(tag.id, tag.model) |> 
+  distinct()
+
+unique(bdat$tag.model)
+
+
+bdat 
 
 
 
@@ -41,17 +40,14 @@ no_ids_proj <- bdat %>%
   group_by(proj, tag.id, animal.id)%>%
   count()
 
-write.csv(no_ids_proj, file.path(out_dat, "proj_animalid.csv"), row.names = T)
-
-
+#write.csv(no_ids_proj, file.path(out_dat, "proj_animalid.csv"), row.names = T)
 
 
 ######################################################################
-##Basic plotting 
-
-
+## Filter tags which cant be used 
 
 bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv"))
+bcat <- left_join(bcat, model.id)
 
 
 # filter the tags which cant be used 
@@ -72,35 +68,15 @@ no_ids_proj <- bd %>%
   summarise(n_tags = length(unique(tag.id)))
 
 
-
 bdd <- bd |> 
   dplyr::select(location.long, location.lat, gps.fix.type.raw, lotek.crc.status, sensor.type,
-                argos.lc, date_time, year, month, day, hour, minute, tag.id)
+                argos.lc,  tag.model, date_time, year, month, day, hour, minute, tag.id)
 
 
 
-# add the duration time since 
-
-# 
-# 
-# If we remove all the algorithm marked outliers (lotek = error, argos accuracy value = A, B, Z). We reduce the number of observations in the data set from `r length(bout$tag.local.identifier)` to `r length(clean$tag.local.identifier)`.
-# Argos accuracy codes are: 
-#   
-#   - Class 0: over 1500 m radius (not currently filtered)
-# 
-# - Class A: Argos no accuracy estimation (3 messages received)
-# - Class B: Argos no accuracy estimation (1 or 2 messages received)
-# - Class Z: Argos Invalid Location
-# 
-# 
-# The cleaned date range varies from 
-# `r min(range(clean$year))` to `r max(range(clean$year))`.
-# 
-
-# GPS vs argos
+# Types of data : GPS vs argos
 
 #The data split between gps and argos data records. Large proportion are argos doppler shift.   These represent two different methods of calculating the locations and all types can be used. 
-
 
 tag_type <- bdd %>%
   dplyr::select(tag.id, sensor.type) %>%
@@ -123,13 +99,31 @@ p_alldat <- ggplot( bdd, aes(year, fill = sensor.type))+
 p_alldat 
 
 
+
+# tag model
+tag_model <- bdd %>%
+  dplyr::select(tag.id, tag.model) %>%
+  group_by(tag.id, tag.model)%>%
+  summarise(n = n())
+
+#tag_model
+
+p_model <- ggplot( tag_model, aes(tag.model)) +
+  geom_bar(position = "dodge") 
+
+
+
+##############################################################
 ## duration of tag 
+#############################################################
+
+## 1. Min and Max - date - duration 
+
 library(dplyr)
 library(lubridate)
 
 bdd <- bdd |> 
-  mutate(ddate = ymd_hms(date_time)) #|> 
- # mutate(sdate = ymd(ddate))
+  mutate(ddate = ymd_hms(date_time))
 
 # calculate the minimum and max dates per collar 
 table_max <- bdd |> 
@@ -157,17 +151,9 @@ dur <- left_join(table_max, table_min, by = join_by(tag.id)) |>
 # add the group by 
 
 bids <- bcat %>% 
-  dplyr::select(tag.id, proj)
+  dplyr::select(tag.id, proj, tag.model)
 
 dur <- left_join(dur, bids)
-
-
-dur <- dur %>% 
-  arrange(dur_days, group.by = proj)
-
-
-# total length of tag duration 
-
 
 # plot total duration of collar data 
 #ggplot(dur, aes(dur_hrs)) +
@@ -176,15 +162,51 @@ dur <- dur %>%
 ggplot(dur, aes(tag.id, dur_hrs,)) +
   geom_col(aes(fill = proj))#, position = position_stack(reverse = TRUE))
 
-
 ggplot(dur, aes(x = forcats::fct_reorder(tag.id, dur_days), y = dur_days)) +
   geom_col(aes(fill = proj))+
   facet_wrap(~proj, scales = "free_x")#, position = position_stack(reverse = TRUE))
 
 
+
+
+# average duration by project 
+
+ggplot(dur, aes(tag.id, dur_hrs,)) +
+  geom_col(aes(fill =tag.model))#, position = position_stack(reverse = TRUE))
+
+
+
+# total duration by tag 
+dur_tag <- dur |> 
+  group_by(tag.model) |> 
+  summarise(min_days = min(dur_days),
+            max_days = max(dur_days),
+            mean_days = mean(dur_days))
+
+dur_tag 
+
+
+
+# duration looking at dates 
+
+
 # plot total duration of collar data 
 ggplot(dur, aes(y=factor(tag.id))) +
   geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id)), linewidth = 1)+
+  xlab("Date") + ylab("Tag") 
+
+
+# plot total duration of collar data 
+ggplot(dur, aes(y=factor(tag.id))) +
+  geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id),colour = proj), linewidth = 1)+
+  scale_color_discrete()+
+  xlab("Date") + ylab("Tag") 
+
+
+# plot total duration of collar data 
+ggplot(dur, aes(y=factor(proj))) +
+  geom_segment(aes(x=min, xend=max, y=factor(proj), yend=factor(proj), colour = proj), linewidth = 3)+
+  scale_color_discrete()+
   xlab("Date") + ylab("Tag") 
 
 
@@ -198,11 +220,31 @@ ggplot(dur, aes(y=factor(tag.id))) +
 
 #####################################################################################
 
-# get basic summaries 
+# seasonality 
 
-no.birds <- bdat %>%
-  
-  count(tag.id)
+bs <- bdd |> 
+  dplyr::select(month, year, tag.id) %>% 
+  distinct() %>%
+  group_by(month, year) %>%
+  count()
+# mutate(sdate = ymd(ddate))
+
+# no of tags per month (all years)
+
+ggplot(bs, aes(x = as.factor(month), y = n)) +
+  geom_col() 
+
+
+# By year 
+ggplot(bs, aes(x = as.factor(month), y = n, fill = as.factor(year))) +
+  geom_col(position = position_dodge2(width = 0.9, preserve = "single"))+
+  #geom_bar(stat = "identity", position = "dodge") #+
+  facet_wrap(~year)#, position = position_stack(reverse = TRUE))
+
+
+####################################################################################
+
+#
 
 
 
@@ -212,26 +254,98 @@ no.birds <- bdat %>%
 
 
 
-sbou <- sbou |> 
-  arrange(animal.id, date_time)
 
-sbou_dur <- sbou |> 
-  mutate(time = as.POSIXct(date_time, format = "%y/%d/%m %H:%M:%S")) |> 
-  group_by(animal.id) |> 
-  mutate(diff = difftime(time, lag(time),  units = c("hours")), 
+
+
+
+
+
+
+
+
+
+
+
+#####################################################################################
+
+# Duration between pings/ 
+bdd <- bdd |> 
+  mutate(ddate = ymd_hms(date_time)) |> 
+  arrange(tag.id, ddate,tag.model)
+
+bdd_dur <- bdd  |> 
+  #mutate(time = as.POSIXct(date_time, format = "%y/%d/%m %H:%M:%S")) |> 
+  group_by(tag.id) |> 
+  mutate(diff = difftime(ddate, lag(ddate),  units = c("hours")), 
          diff = as.numeric(diff))
 
 # we can see a big range in the time intervals for the fixes
-range(sbou_dur$diff, na.rm = TRUE)
+range(bdd_dur$diff, na.rm = TRUE)
 
 
+ggplot(bdd_dur, aes(tag.id, diff)) +
+  geom_col(aes(fill = tag.model))#, position = position_stack(reverse = TRUE))
 
 
+# average and min max between gps 
+
+ bdd_dur_sum <- bdd_dur |> 
+   group_by(tag.id) |> 
+   filter(diff != 0) |> 
+   summarise(mean = mean(diff, na.rm = T), 
+             min = min(diff, na.rm = T), 
+             max = max(diff, na.rm = T))
+
+bdd_dur_sum <- left_join(bdd_dur_sum, bcat)%>%
+  select(-X, -Subspecies, -Subpopulations, -Catergory, -To, -From, -Directon, -Duplicates, -animal.id)
 
 
+# Checked these tags and correct 
+
+# 232985 - sunbird 
+# 232986 - sunbird 
+
+# 229370 - sunbird? Mingan
+# 240157 - deply april 2023 gap til Oct - sunbird . Might be fixed by Movebank issue 
+# 240155 - deply april 2023 gap til Oct - sunbird . Might be fixed by Movebank issue 
+# 240162 - deply april 2023 gap til Oct - sunbird . Might be fixed by Movebank issue 
+# 240160 - deply april 2023 gap til Oct - sunbird . Might be fixed by Movebank issue 
+# 242570 - sunbird , gap in timing but seems legit
+# 242573 - sunbird , gap in timing but seems legit
+# 240156 - sunbird - legit
 
 
+# Number of ppoints and average frequency. 
 
+ggplot(bdd_dur_sum, aes(mean, fill = tag.model)) +
+  geom_bar(stat = "identity")#, position = position_stack(reverse = TRUE))
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 ###############################################
 # map data
 

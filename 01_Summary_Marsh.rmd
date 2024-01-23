@@ -47,13 +47,13 @@ brep <- brep %>%
 mutate(tag.local.identifier = tag.id,
   animal.marker.id = animal.id, 
   animal.id = str_c("MISP_", tag.id, "_2023")) %>% 
-  mutate(animal.marker.id = str_sub(animal.marker.id, -9, -1))
-
-no.tags.ref <- unique(brep$tag.local.identifier)
-no.ids.ref <- unique(brep$animal.id)
-
+  mutate(animal.marker.id = str_sub(animal.marker.id, -9, -1), 
+         tag.model = "Lotek PinPoint GPS-Argos 75",
+         tag.manufacturer.name = "Lotek") 
 
 
+#no.tags.ref <- unique(brep$tag.local.identifier)
+#no.ids.ref <- unique(brep$animal.id)
 
 
 #filesoi <- list.files(raw_dat, pattern = key)
@@ -65,47 +65,52 @@ bout <- btemp %>%
                   sensor.type, individual.local.identifier,
                    height.above.ellipsoid, import.marked.outlier,
                   argos.lc, algorithm.marked.outlier,argos.altitude,
-                  height.above.ellipsoid, tag.local.identifier)
+                  height.above.ellipsoid, tag.local.identifier) %>%
+  mutate(date_time = ymd_hms(timestamp))
 
+# 
+# # calculate time differences
+# bout <- bout  %>%
+#   mutate(date_time = ymd_hms(timestamp))%>%
+#   mutate(year = year(date_time )) %>%
+#   mutate(month = month(date_time ),
+#          day = day(date_time),
+#          hour = hour(date_time),
+#          minute = minute(date_time))
 
-# calculate time differences
-bout <- bout  %>%
-  mutate(date_time = ymd_hms(timestamp))%>%
-  mutate(year = year(date_time )) %>%
-  mutate(month = month(date_time ),
-         day = day(date_time),
-         hour = hour(date_time),
-         minute = minute(date_time))
-
-no.tags <- unique(bout$tag.local.identifier)
-no.ids <- unique(bout$individual.local.identifier)
+# no.tags <- unique(bout$tag.local.identifier)
+# no.ids <- unique(bout$individual.local.identifier)
   
-
-ids <- bout %>%
-  dplyr::select(tag.local.identifier, individual.local.identifier) %>%
-  group_by(tag.local.identifier, individual.local.identifier)%>%
-  summarise(n = n())
-  
-
-ymin = min(range(bout$year))
-ymax = max(range(bout$year))
-
-
-brep 
-bout
+# 
+# ids <- bout %>%
+#   dplyr::select(tag.local.identifier, individual.local.identifier) %>%
+#   group_by(tag.local.identifier, individual.local.identifier)%>%
+#   summarise(n = n())
+#   
+# 
+# ymin = min(range(bout$year))
+# ymax = max(range(bout$year))
+# 
+# 
+# brep 
+# bout
 
 all_dat <- left_join(bout, brep )%>% 
   dplyr::select(-individual.local.identifier, 
-         -deploy.off.date, - animal.taxon, -tag.local.identifier )%>%
-  mutate(argos.lc = as.character(argos.lc))
-
+         -deploy.off.date, - animal.taxon, -tag.local.identifier ) %>%
+  mutate(argos.lc = as.character(argos.lc))%>%
+  mutate(deploy.on.latitude = 39.20075, 
+       deploy.on.longitude = -75.0255 , 
+       study.site = "Thomp")%>%
+  mutate(tag.id = as.character(tag.id))
+  
 
 head(all_dat)
 
 
 # #save out file
 clean_save = all_dat %>% mutate(proj = "Mispillion")
-saveRDS(clean_save, file = file.path("output", "rekn_mispillion_20231219.rds"))
+saveRDS(clean_save, file = file.path("output", "rekn_mispillion_20240101.rds"))
 
 
 

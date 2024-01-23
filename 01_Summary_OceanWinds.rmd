@@ -47,11 +47,10 @@ brep <- brep %>%
 #    dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.marker.id","animal.ring.id", "tag.serial.no", animal.life.stage, deploy.on.measurements,  animal.mass))%>%
 mutate(tag.local.identifier = tag.id)
 
-no.tags.ref <- unique(brep$tag.local.identifier)
-no.ids.ref <- unique(brep$animal.id)
+#no.tags.ref <- unique(brep$tag.local.identifier)
+#no.ids.ref <- unique(brep$animal.id)
 
 # number of unique tags = no of ids 
-
 
 # read in track data 
 
@@ -63,37 +62,68 @@ bout <- btemp %>%
                   sensor.type, individual.local.identifier,
                   argos.lc, algorithm.marked.outlier,
                   tag.local.identifier,
-                  height.above.ellipsoid)
+                  height.above.ellipsoid)%>%
+  mutate(date_time = ymd_hms(timestamp))
 
-
-# calculate time differences
-bout <- bout  %>%
-  mutate(date_time = ymd_hms(timestamp))%>%
-  mutate(year = year(date_time )) %>%
-  mutate(month = month(date_time ),
-         day = day(date_time),
-         hour = hour(date_time),
-         minute = minute(date_time))
-
-no.tags <- unique(bout$tag.local.identifier)
-no.ids <- unique(bout$individual.local.identifier)
-  
-
-ids <- bout %>%
-  dplyr::select(tag.local.identifier, individual.local.identifier) %>%
-  group_by(tag.local.identifier, individual.local.identifier)%>%
-  summarise(n = n())
-  
-
-ymin = min(range(bout$year))
-ymax = max(range(bout$year))
+# 
+# # calculate time differences
+# bout <- bout  %>%
+#   mutate(date_time = ymd_hms(timestamp))%>%
+#   mutate(year = year(date_time )) %>%
+#   mutate(month = month(date_time ),
+#          day = day(date_time),
+#          hour = hour(date_time),
+#          minute = minute(date_time))
+# 
+# no.tags <- unique(bout$tag.local.identifier)
+# no.ids <- unique(bout$individual.local.identifier)
+#   
+# 
+# ids <- bout %>%
+#   dplyr::select(tag.local.identifier, individual.local.identifier) %>%
+#   group_by(tag.local.identifier, individual.local.identifier)%>%
+#   summarise(n = n())
+#   
+# 
+# ymin = min(range(bout$year))
+# ymax = max(range(bout$year))
 
 ###########################
-
-brep 
-bout
+# 
+# brep 
+# bout
 
 all_dat <- left_join(bout, brep )
+                     
+all_dat <- all_dat |> 
+ mutate(tag.id = as.character(tag.id)) %>%
+  mutate(tag.model = "Lotek PinPoint GPS-Argos 75", 
+         tag.manufacturer.name="Lotek") %>%
+  filter(!is.na(location.long), 
+         !is.na(location.lat)) %>%
+   dplyr::mutate(lotek.crc.status = case_when(
+    is.na(lotek.crc.status) ~ "",
+    TRUE ~ as.character(lotek.crc.status)))%>%
+  dplyr::filter(lotek.crc.status != "E")%>%
+  dplyr::mutate(argos.lc = case_when(
+    is.na(argos.lc) ~ "",
+    TRUE ~ as.character(argos.lc)))%>%
+  dplyr::filter(argos.lc != "Z")
+
+
+all_dat <- all_dat %>% 
+  dplyr::mutate(deploy.on.latitude = case_when(
+    study.site == "TWOMILE" ~ 39.0277,
+    study.site == "STOHARB" ~ 39.0277,
+    study.site == "AVALON" ~ 39.0979,
+    study.site == "NBRIG" ~ 39.436)) %>%
+  dplyr::mutate(deploy.on.longitude = case_when(
+        study.site == "TWOMILE" ~ -74.7808,
+    study.site == "STOHARB" ~ -74.7808,
+    study.site == "AVALON" ~ -74.7138,
+    study.site == "NBRIG" ~ -74.346))
+ 
+
 
 head(all_dat)
 
@@ -106,7 +136,7 @@ all_dat <- all_dat %>%
 # #save out file
 clean_save = all_dat %>% mutate(proj = "OceanWinds")
 
-saveRDS(clean_save, file = file.path("output", "rekn_ocean_20231219.rds"))
+saveRDS(clean_save, file = file.path("output", "rekn_ocean_20240101.rds"))
 
 
 ```

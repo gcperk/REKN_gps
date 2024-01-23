@@ -104,7 +104,6 @@ all_dat <- all_dat %>%
   dplyr::select(-individual.local.identifier, -tag.local.identifier, -animal.taxon, 
          -deploy.off.date, -algorithm.marked.outlier, -import.marked.outlier) %>%
   mutate(tag.id = as.character(tag.id)) %>%
-  filter() %>% 
   dplyr::mutate(lotek.crc.status = case_when(
     is.na(lotek.crc.status) ~ "",
     TRUE ~ as.character(lotek.crc.status)))%>%
