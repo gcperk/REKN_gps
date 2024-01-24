@@ -16,10 +16,10 @@ library(dplyr)
 raw_dat <- file.path("output")
 out_dat <- file.path("output", "report")
 
-bdat <- read.csv(file.path(raw_dat ,"xsubset_rekn_20240119.csv"))
+bdat <- read.csv(file.path(raw_dat ,"xsubset_rekn_20240123.csv"))
 
 model.id <- bdat |> 
-  select(tag.id, tag.model) |> 
+  dplyr::select(tag.id, tag.model) |> 
   distinct()
 
 unique(bdat$tag.model)
