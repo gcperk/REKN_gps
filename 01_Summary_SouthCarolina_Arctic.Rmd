@@ -62,12 +62,12 @@ bout <- btemp %>%
                   tag.local.identifier)
 
 # calculate time differences
-bout <- bout  %>% mutate(date_time = ymd_hms(timestamp)) #%>%
-  # mutate(year = year(date_time )) %>%
-  # mutate(month = month(date_time ),
-  #        day = day(date_time),
-  #        hour = hour(date_time),
-  #        minute = minute(date_time))
+bout <- bout  %>% mutate(date_time = ymd_hms(timestamp)) %>%
+  mutate(year = year(date_time )) %>%
+  mutate(month = month(date_time ),
+         day = day(date_time),
+         hour = hour(date_time),
+         minute = minute(date_time))
 
 #no.tags <- unique(bout$tag.local.identifier)
 #no.ids <- unique(bout$individual.local.identifier)
@@ -96,18 +96,229 @@ all_dat <- left_join(bout, brep) %>%
          !is.na(location.lat)) %>%
   mutate(deploy.on.latitude = 32.53945, 
          deploy.on.longitude = -80.17069)%>%
-  dplyr::filter(argos.lc != "Z")
+  dplyr::filter(argos.lc != "Z")%>%
+  dplyr::filter(argos.lc != "") 
+
+all_dat <- all_dat %>%
+  mutate(id = seq(1, length(all_dat$visible), 1))
+
+#unique(all_dat$argos.lc)
+
+#type_dur <-all_dat|> 
+#  dplyr::select(tag.id, argos.lc) |> 
+#  group_by(argos.lc, tag.id) |> 
+#  summarise( n =  n())
+
+##############################################################################
+## Calculate the stopoverlocations: 
+
+# Duration between pings/ 
+bdd <- all_dat |> 
+  mutate(ddate = ymd_hms(date_time)) |> 
+  arrange(tag.id, ddate)
+
+bdd_dur <- bdd  |> 
+  group_by(tag.id) |> 
+  mutate(diff = difftime(ddate, lag(ddate),  units = c("hours")), 
+         diff = as.numeric(diff))%>%
+  dplyr::filter(diff >0)
+
+# 
+# type_dur <- bdd_dur |> 
+#   dplyr::select(tag.id, argos.lc, diff) |> 
+#   group_by(argos.lc, tag.id) |> 
+#   summarise( n =  n(), 
+#              min = min(diff, na.rm= T),
+#              max =max(diff, na.rm = T), 
+#              mean = mean(diff, na.rm = T))
+
+## Calculate distance between points and bearing
+
+bdd_det <- bdd_dur  |> 
+  #filter(tag.id == 230318) |> 
+  group_by(tag.id) |> 
+  mutate(location.long_prior = lag(location.long, 1L),
+         location.lat_prior = lag(location.lat, 1L)) %>%
+  rowwise() %>%
+  mutate(gcd_m = distHaversine(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+         bearing = bearing(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+         speed_mhr = round((gcd_m/diff)/1000,1))%>%
+  ungroup()
+
+# determine the location of direction 
+
+head(bdd_det)
 
 
-unique(all_dat$argos.lc)
+# stop over = within 25 km of previous point? 
 
+bt <- bdd_det |> 
+  dplyr::select(id, tag.id, ddate, day, month, year,location.long, location.lat,location.lat_prior, diff, gcd_m,bearing, speed_mhr) %>%
+  group_by(tag.id)%>%
+  mutate(stopover = ifelse( gcd_m <= 25000, "stop-over", "migration")) %>%
+  mutate(breeding = case_when(
+    stopover == "stop-over" & month %in% c(6,7,8) & location.lat > 60 ~ "breeding", 
+    .default = "NA")) %>%
+ mutate(direction = case_when(
+    location.lat >= location.lat_prior ~ "northward", 
+    location.lat <= location.lat_prior~ "southward",
+    .default = "NA"))%>%
+  ungroup()
+
+clean_sf <- st_as_sf(bt, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "pt_sth_20240123.gpkg"), append = F)
+
+# 
+# 
+# activity = case_when(
+#     
+#   )
+#            )
+# 
+
+#########################################################\
+# tag 1 
+#########################################################
+
+
+bt242656 <- bt %>% 
+  dplyr::filter(tag.id == "242656")
+
+idll <- bt242656 |> 
+  dplyr::select("location.long", "location.lat", id)
+
+clean_sf <- st_as_sf(bt242656, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "pt_bt242656.gpkg"), append = F)
+
+# read back in and fix corrections; 
+
+manual_edits <- file.path("output", "manual_edited_complete")
+bt24edit <- read.csv(file.path( manual_edits, "pt_sth232565all.csv")) %>%
+  mutate(breeding = case_when(
+           stopover == "stop-over" & month %in% c(9, 10, 11, 12) ~ "wintering", 
+           stopover == "stop-over" & month == 5 ~ "wintering", 
+          .default = as.character(breeding)))%>%
+  mutate(direction = case_when(
+           breeding == "wintering"  ~ NA, 
+           stopover == "breeding" ~ NA,
+          .default = as.character(direction)))%>% 
+  left_join(idll) %>%
+  dplyr::filter(!is.na(location.lat))
+  
+
+
+clean_sf <- st_as_sf(bt24edit, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path(manual_edits, "pt_bt242656_final.gpkg"), append = F)
+
+
+ #list.files(file.path("output", "manual_edited_complete"))
+
+
+
+#clean_sf <- st_as_sf(bdd_det, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+#st_write(clean_sf, file.path("output", "pt_sth_20240123.gpkg"), append = F)
+
+
+
+
+#########################################################\
+# tag 2
+#########################################################
+
+bt242657 <- bt %>% 
+  dplyr::filter(tag.id == "242657")
+
+idll <- bt242657 |> 
+  dplyr::select("location.long", "location.lat", id)
+
+clean_sf <- st_as_sf(bt242657, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "pt_bt242657.gpkg"), append = F)
+
+# read back in and fix corrections; 
+
+manual_edits <- file.path("output", "manual_edited_complete")
+bt67edit <- read.csv(file.path( manual_edits, "pt_sth232567all.csv")) %>%
+  left_join(idll) %>%
+  mutate(breeding = case_when(
+           stopover == "stop-over" & month %in% c(9, 10, 11, 12) ~ "wintering", 
+           stopover == "stop-over" & month == 5 & location.lat <35 ~ "wintering", 
+          .default = as.character(breeding)))%>%
+  mutate(direction = case_when(
+           breeding == "wintering"  ~ NA, 
+           stopover == "breeding" ~ NA,
+          .default = as.character(direction)))%>% 
+  dplyr::filter(!is.na(location.lat))
+  
+
+
+clean_sf <- st_as_sf(bt67edit, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path(manual_edits, "pt_bt242657_final.gpkg"), append = F)
+
+
+#########################################################\
+# tag 3
+#########################################################
+
+bt242658 <- bt %>% 
+  dplyr::filter(tag.id == "242658")
+
+idll <- bt242658 |> 
+  dplyr::select("location.long", "location.lat", id)
+
+clean_sf <- st_as_sf(bt242658, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "pt_bt242658.gpkg"), append = F)
+
+
+
+# read back in and fix corrections; 
+
+manual_edits <- file.path("output", "manual_edited_complete")
+bt68edit <- read.csv(file.path( manual_edits, "pt_sth242568all.csv")) %>%
+  left_join(idll) %>%
+  #mutate(breeding = case_when(
+  #         stopover == "stop-over" & month %in% c(9, 10, 11, 12) ~ "wintering", 
+  #         stopover == "stop-over" & month == 5 & location.lat <35 ~ "wintering", 
+  #        .default = as.character(breeding)))%>%
+  mutate(direction = case_when(
+           breeding == "wintering"  ~ NA, 
+           stopover == "breeding" ~ NA,
+          .default = as.character(direction)))%>% 
+  dplyr::filter(!is.na(location.lat))
+  
+
+
+clean_sf <- st_as_sf(bt68edit, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path(manual_edits, "pt_bt242658_final.gpkg"), append = F)
+
+
+
+
+
+# merge together 
+
+
+sth_out <- bind_rows(bt24edit, bt67edit, bt68edit)%>%
+ dplyr::select(id, diff, bearing, speed_mhr,  stopover,  breeding, direction, gcd_m)
+
+length(bt$id)%>%
+  mutate(tag.id = as.character(tag.id))
+length(sth_out$id)
+
+btout <- left_join(all_dat, sth_out, by = "id")
 
 
 
 
 # #save out file
-clean_save = all_dat %>% mutate(proj = "sthcarolina_arctic")
-saveRDS(clean_save, file = file.path("output", "rekn_sthcarolina_20240101.rds"))
+clean_save = btout %>% mutate(proj = "sthcarolina_arctic")
+saveRDS(clean_save, file = file.path("output", "rekn_sthcarolina_20240123.rds"))
+
+
+
+
+clean_sf <- st_as_sf(clean_save, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path(manual_edits, "rekn_sthcarolina_20240113.gpkg"), append = F)
+
 
 
 
