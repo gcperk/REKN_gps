@@ -229,7 +229,9 @@ jgps <- left_join(jgps , deploy_dates)%>%
 #str(jgps)
 jgps <- jgps |> 
   dplyr::select(-TagID2, -LocType_new, -Corr, -Time2, -Time, 
-                -Long_new, -LocType_new, -LocType, - Date, -arrive, - month, -day, -hour, -minute)
+                -Long_new, -LocType_new, -LocType, - Date, -arrive, - month, -day, -hour, -minute, -year)%>% 
+  filter(!is.na(location.long), 
+         !is.na(location.lat))
 
 
 saveRDS(jgps , file = file.path("output", "rekn_johnson_raw_20240101.rds"))
@@ -244,6 +246,39 @@ filesoi <- list.files(raw_dat)
 
 ndatr <- read_xlsx(file.path(raw_dat, "Newstead","CBBEP_Newstead_Red Knot Gulf to Arctic.xlsx"), 
                   .name_repair = "universal")
+
+nref<- read_xlsx(file.path(raw_dat, "Newstead","CBBEP_Newstead_Red Knot Gulf to Arctic.xlsx"), 
+                   sheet = 'Capture Data', .name_repair = "universal") %>% 
+  mutate(animal.id = individual.local.identifier) %>%
+  rename("animal.sex" = Sex, 
+         "animal.life.stage" = Age, 
+         "animal.ring.id" = Band.number) 
+
+
+nref <- nref %>%
+  mutate(deploy.on.date = Capture.date,
+         deploy.on.measurements = str_c("{culmenInMillimeters:",Culmen, ",theadInMilimeters:", TotalHead,",wingInMillimeters:",Wing,"}"),
+         animal.mass = Weight,
+         study.site = case_when(
+           Site == "Elmers Island" ~ "elmer",
+           Site == "Grand Isle" ~ "grandis",
+           Site == "Padre Island National Seashore - Southbeach" ~ "padre",
+           Site == "Fourchon Beach/Caminada" ~ "fourc",
+            ))%>% 
+  dplyr::mutate(deploy.on.latitude = case_when(
+    study.site == "elmer" ~ 29.1774,
+    study.site == "grandis" ~ 29.2451,
+    study.site == "padre" ~ 27.063,
+    study.site == "fourc" ~ 29.1)) %>%
+  dplyr::mutate(deploy.on.longitude = case_when(
+    study.site == "elmer" ~ -90.0724,
+    study.site == "grandis" ~ -89.9767,
+    study.site == "padre" ~ -97.415,
+    study.site == "fourc" ~ -90.226))%>%
+  dplyr::select("study.site", "animal.id", "deploy.on.date", "deploy.on.measurements",  "deploy.on.latitude",      
+                 "deploy.on.longitude" ,"animal.sex" , "animal.ring.id",  "animal.life.stage"      )
+
+
 
 ndat <- ndatr %>%
   #filter(`lotek.crc.status.text` != "OK(corrected)")  %>%
@@ -260,9 +295,18 @@ ndat <- ndatr %>%
   mutate(day = day(arrive)) %>%
   mutate(hour = hour(arrive),
         minute = minute(arrive)) %>% 
-  dplyr::select(-Date, -arrive) %>%
-  dplyr::select( -event.id, -study.name, -individual.taxon.canonical.name,-lotek.crc.status.text) %>%
-  mutate(timestamp = as.character(timestamp))
+  dplyr::select(-Date) %>%
+  mutate(timestamp = as.character(timestamp)) %>% 
+  mutate(date_time = arrive, 
+         tag.id = tag.local.identifier)%>% 
+  dplyr::select( -event.id, -arrive, -study.name, -individual.taxon.canonical.name,-lotek.crc.status.text) %>%
+  mutate(tag.id = as.character(tag.id))
+
+
+
+ndat <- left_join(ndat, nref)
+
+
 
 
 ndat3v <- read.csv(file.path(raw_dat, "Newstead","3 V.csv"))
@@ -276,28 +320,39 @@ ndat3v  <- ndat3v   %>%
          minute = minute(date_time))%>% 
   dplyr::select(-utm.northing, -utm.easting ,  -study.timezone,  -mortality.status, tag.voltage,
             -individual.taxon.canonical.name,   -event.id,   -study.local.timestamp,
-            -external.temperature, -study.name, -date_time, -tag.voltage, -utm.zone, -lotek.crc.status.text ) %>%
+            -external.temperature, -study.name,  -tag.voltage, -utm.zone, -lotek.crc.status.text ) %>%
   mutate(proj = "Newstead") %>%
   rename("animal.id" = individual.local.identifier)%>%
-  mutate(tag.id = animal.id) %>%
+  mutate(tag.id = tag.local.identifier) %>%
   mutate(tag.id = as.character(tag.id))%>%
-  rename("date_time" = timestamp)%>%
-  mutate(date_time = ymd_hms(date_time))%>%
-  mutate(tag.model = "Lotek PinPoint GPS-Argos 75")
+  #mutate("date_time" = timestamp)%>%  
+  mutate(timestamp = as.character(timestamp))%>%
+  mutate(deploy.on.latitude = 27.063, 
+         deploy.on.longitude = -97.415 , 
+         study.site = "Padre") 
 
+aa <- ndat3v %>%
+  dplyr::select(date_time, "animal.id" )%>%
+  slice_min(date_time) %>% 
+  distinct(date_time)%>%
+  pull()
+
+ndat3v  <- ndat3v   %>%
+  mutate(deploy.on.date = aa)
 
 #head(ndat)
-
 #head(ndat3v) 
 
 ndat_out <- bind_rows(ndat, ndat3v) %>%
-  dplyr::select(-height.above.ellipsoid, -data_type, -tag.local.identifier)
+  dplyr::select(-height.above.ellipsoid, -data_type, -tag.local.identifier, -import.marked.outlier, 
+                -year, -month, -day, -hour, -minute)%>%
+  mutate(tag.model = "Lotek PinPoint GPS-Argos 75", 
+         tag.manufacturer.name = "Lotek", 
+         deploy.on.date = as.character(deploy.on.date),
+         animal.ring.id = as.character(animal.ring.id))
 
-saveRDS(ndat_out, file = file.path("output", "rekn_newstead_20231219.rds"))
 
-
-
-##### Felicia 's data is already in movebank 
+saveRDS(ndat_out, file = file.path("output", "rekn_newstead_20240101.rds"))
 
 
 
