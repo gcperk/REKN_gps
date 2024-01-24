@@ -43,8 +43,6 @@ filesoi <- filesoi[2]
 brep <- read.csv(file.path(raw_dat, filesoi_ref))
 
 brep <- brep %>%
-  # dplyr::select(c(tag.id , "animal.id" ,deploy.on.date, "animal.ring.id",
-  #                 tag.manufacturer.name, tag.mass,   tag.model))%>%
 mutate(tag.local.identifier = tag.id)
 
 #no.tags.ref <- unique(brep$tag.local.identifier)
@@ -61,35 +59,13 @@ bout <- btemp %>%
                   argos.lc, algorithm.marked.outlier,
                   tag.local.identifier, gps.fix.type.raw, 
                   import.marked.outlier,
-                  height.above.ellipsoid)%>%
-  mutate(date_time = ymd_hms(timestamp))
-
-# 
-# # calculate time differences
-# bout <- bout  %>%
-#   mutate(date_time = ymd_hms(timestamp))%>%
-#   mutate(year = year(date_time )) %>%
-#   mutate(month = month(date_time ),
-#          day = day(date_time),
-#          hour = hour(date_time),
-#          minute = minute(date_time))
-# 
-# no.tags <- unique(bout$tag.local.identifier)
-# no.ids <- unique(bout$individual.local.identifier)
-#   
-# 
-# ids <- bout %>%
-#   dplyr::select(tag.local.identifier, individual.local.identifier) %>%
-#   group_by(tag.local.identifier, individual.local.identifier)%>%
-#   summarise(n = n())
-#   
-# 
-# ymin = min(range(bout$year))
-# ymax = max(range(bout$year))
-
-
-brep 
-bout
+                  height.above.ellipsoid) %>%
+  mutate(date_time = ymd_hms(timestamp))%>%
+  mutate(year = year(date_time )) %>%
+  mutate(month = month(date_time ),
+         day = day(date_time),
+         hour = hour(date_time),
+         minute = minute(date_time))
 
 all_dat <- left_join(bout, brep )%>%
   mutate(argos.lc = as.character(argos.lc)) %>%
@@ -117,17 +93,106 @@ all_dat <- all_dat %>%
          study.site = "THOMP")
 
 
-
 all_dat <- all_dat %>% 
   dplyr::select(-individual.local.identifier, -tag.local.identifier, -animal.taxon, 
          -deploy.off.date, - deployment.id, -animal.comments)
  
+all_dat <- all_dat %>%
+  mutate(id = seq(1, length(all_dat$visible), 1))
+
+
+
+##############################
+# durations
+
+# Duration between pings/ 
+bdd <- all_dat |> 
+  mutate(ddate = ymd_hms(date_time)) |> 
+  arrange(tag.id, ddate)
+
+bdd_dur <- bdd  |> 
+  group_by(tag.id) |> 
+  mutate(diff = difftime(ddate, lag(ddate),  units = c("hours")), 
+         diff = as.numeric(diff))%>%
+  dplyr::filter(diff >0)
+
+
+## Calculate distance between points and bearing
+
+bdd_det <- bdd_dur  |> 
+  #filter(tag.id == 230318) |> 
+  group_by(tag.id) |> 
+  mutate(location.long_prior = lag(location.long, 1L),
+         location.lat_prior = lag(location.lat, 1L)) %>%
+  rowwise() %>%
+  mutate(gcd_m = distHaversine(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+         bearing = bearing(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+         speed_mhr = round((gcd_m/diff)/1000,1))%>%
+  ungroup()
+
+# determine the location of direction 
+
+head(bdd_det)
+
+
+# stop over = within 25 km of previous point? 
+
+bt <- bdd_det |> 
+  dplyr::select(id, tag.id, ddate, day, month, year,location.long, location.lat,location.lat_prior, diff, gcd_m,bearing, speed_mhr) %>%
+  group_by(tag.id)%>%
+  mutate(stopover = ifelse( gcd_m <= 25000, "stop-over", "migration")) %>%
+  mutate(breeding = case_when(
+    stopover == "stop-over" & month %in% c(6,7,8) & location.lat > 60 ~ "breeding", 
+    .default = "NA")) %>%
+ mutate(direction = case_when(
+    location.lat >= location.lat_prior ~ "northward", 
+    location.lat <= location.lat_prior~ "southward",
+    .default = "NA"))%>%
+  ungroup()
+
+
+idll <- bt|> 
+  dplyr::select("location.long", "location.lat", id)
+
+
+clean_sf <- st_as_sf(bt, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "pt_MAmig_20240123.gpkg"), append = F)
+
+# 
+
+## Post manual edits
+
+manual_edits <- file.path("output", "manual_edited_complete")
+maedit <- read.csv(file.path( manual_edits, "pt_ma_mig_all.csv")) %>%
+  left_join(idll) %>%
+   mutate(direction = case_when(
+           breeding == "wintering"  ~ NA, 
+           stopover == "breeding" ~ NA,
+          .default = as.character(direction)))%>% 
+  dplyr::filter(!is.na(location.lat)) %>%
+  dplyr::select(-tag.id, -ddate, -day, -month, -year, -"location.long", -"location.lat")
+ 
+
+head()
+
+
+
+maout <- left_join(all_dat, maedit, by = "id")%>%
+  dplyr::select(-fid)
 
 
 
 # #save out file
-clean_save = all_dat %>% mutate(proj = "ma_migration")
-saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20240101.rds"))
+clean_save = maout %>% mutate(proj = "ma_migration")
+saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20240123.rds"))
+
+
+
+
+
+clean_sf <- st_as_sf(clean_save, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path(manual_edits, "rekn_ma_mig_20240123.gpkg"), append = F)
+
 
 
 ```
