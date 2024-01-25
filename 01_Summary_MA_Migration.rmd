@@ -173,13 +173,10 @@ maedit <- read.csv(file.path( manual_edits, "pt_ma_mig_all.csv")) %>%
   dplyr::select(-tag.id, -ddate, -day, -month, -year, -"location.long", -"location.lat")
  
 
-head()
-
-
+#head()
 
 maout <- left_join(all_dat, maedit, by = "id")%>%
   dplyr::select(-fid)
-
 
 
 # #save out file
@@ -187,12 +184,8 @@ clean_save = maout %>% mutate(proj = "ma_migration")
 saveRDS(clean_save, file = file.path("output", "rekn_ma_mig_20240123.rds"))
 
 
-
-
-
 clean_sf <- st_as_sf(clean_save, coords = c("location.long", "location.lat"), crs = st_crs(4326))
 st_write(clean_sf, file.path(manual_edits, "rekn_ma_mig_20240123.gpkg"), append = F)
-
 
 
 ```

@@ -64,6 +64,7 @@ qout <- left_join(qb, qref, by = "tag.id")
 
 qb <-qout |> 
   mutate(toremove = case_when(
+    tag.id == 232347~ 1, # this is a upland sandpiper
     tag.id == 213948 ~ 1, 
     tag.id == 232341 ~ 1, 
     tag.id == 232342 ~ 1, 
@@ -208,6 +209,7 @@ quedit <- read.csv(file.path( manual_edits, "pt_qu_all.csv")) %>%
 
 qb <-quedit |> 
   mutate(toremove = case_when(
+    tag.id == 232347~ 1,
     tag.id == 213948 ~ 1, 
     tag.id == 232341 ~ 1, 
     tag.id == 232342 ~ 1, 
@@ -278,8 +280,6 @@ saveRDS(clean_save, file = file.path("output", "rekn_mignon_raw_20240123.rds"))
 
 clean_sf <- st_as_sf(clean_save, coords = c("location.long", "location.lat"), crs = st_crs(4326))
 st_write(clean_sf, file.path(manual_edits, "rekn_qu_20240123.gpkg"), append = F)
-
-
 
 
 
@@ -378,7 +378,7 @@ jgps <- jgps %>%
          study.site = "SandIs")
 
 
-
+# needs to be fixed here 
 deploy_dates <- jgps %>%
   dplyr::select(tag.id, date_time, LocType) %>%
   filter(LocType == "Deploy") %>% 
