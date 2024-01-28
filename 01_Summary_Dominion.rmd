@@ -142,11 +142,6 @@ idll <- bt|>
 clean_sf <- st_as_sf(bt, coords = c("location.long", "location.lat"), crs = st_crs(4326))
 st_write(clean_sf, file.path("output", "pt_dom_20240123.gpkg"), append = F)
 
-# 
-
-
-
-
 
 ## Post manual edits
 

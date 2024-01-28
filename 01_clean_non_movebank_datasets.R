@@ -23,11 +23,20 @@ filesoi <- list.files(raw_dat)
 # 1) Yves_Aubres 
 
 qbirds <- read.csv(file.path(raw_dat, "aurey_yves", "redknotcan_6687_QuebecRawLotek.csv"))
-qref <- read_xlsx(file.path(raw_dat, "aurey_yves", "ReferenceQiuebec_2020_2023_ArgosDeployment.xlsx"), 
+# qref <- read_xlsx(file.path(raw_dat, "aurey_yves", "ReferenceQiuebec_2020_2023_ArgosDeployment.xlsx"), 
+#                   .name_repair = "universal") %>%
+#   dplyr::select(-animal.id, -...22, -deploy.on.timestamp) |> 
+#   mutate(tag.id = as.numeric(tag.id)) %>%
+#   filter(!is.na(tag.id)) 
+
+
+qref2 <- read_xlsx(file.path(raw_dat, "aurey_yves", "ReferenceQuebec_2020_2023_ArgosDeployment26Jan2024.xlsx"), 
                   .name_repair = "universal") %>%
-  dplyr::select(-animal.id, -...22, -deploy.on.timestamp) |> 
-  mutate(tag.id = as.numeric(tag.id)) %>%
-  filter(!is.na(tag.id)) 
+  mutate(tag.id = as.numeric(Tag.ID)) %>%
+  filter(!is.na(tag.id)) %>%
+  dplyr::select(-animal.id, -...23, -deploy.on.timestamp) 
+
+
 
 qb <- qbirds |> 
   dplyr::select(Tag_ID, UTC_Date,  UTC_Time,  Latitude,  Longitude,  Location.Quality)
@@ -56,13 +65,13 @@ qb <- qb %>%
   dplyr::select(- UTC_Date, -UTC_Time)
 
 
-qout <- left_join(qb, qref, by = "tag.id")
+qout <- left_join(qb, qref2, by = "tag.id")
 
 
 # filter out Quebec 
 
 
-qb <-qout |> 
+qb <- qout |> 
   mutate(toremove = case_when(
     tag.id == 232347~ 1, # this is a upland sandpiper
     tag.id == 213948 ~ 1, 
@@ -195,16 +204,20 @@ st_write(clean_sf, file.path("output", "pt_ming_20240123.gpkg"), append = F)
 
 # 
 
+
+
 ## Post manual edits
 
 manual_edits <- file.path("output", "manual_edited_complete")
-quedit <- read.csv(file.path( manual_edits, "pt_qu_all.csv")) %>%
-  left_join(idll) %>%
+quedit <- read.csv(file.path( manual_edits, "pt_qu_all2.csv")) %>%
+  mutate(tag.id = as.character(tag.id)) |> 
+  #left_join(idll) %>%
   mutate(direction = case_when(
     breeding == "wintering"  ~ NA, 
     stopover == "breeding" ~ NA,
-    .default = as.character(direction)))%>% 
-  dplyr::filter(!is.na(location.lat)) 
+    .default = as.character(direction)))
+
+quedit <- left_join(quedit, idll)
 
 
 qb <-quedit |> 
@@ -268,18 +281,44 @@ qb <- qb %>%
   dplyr::select(-tag.id, -ddate, -day, -month, -year, -"location.long", -"location.lat")
 
 
-quout <- left_join(all_dat, qb, by = "id")%>%
-  dplyr::select(-fid)
+# 
+# head(qb)
+# head(all_dat)
+# 
+# 
+# sort(names(qb))
+
+qb <- qb %>%
+  dplyr::select("id", animal.id, animal.life.stage, animal.marker.id, animal.mass, 
+                animal.ring.id, animal.sex,  animal.taxon,  argos.lc, 
+                bearing, breeding, capture.timestamp, date_time, 
+                deploy.on.date ,"deploy.on.latitude" ,    "deploy.on.longitude" ,   "deploy.on.measurements",
+                "deploy.on.person", "deployment.comment" , "diff" ,"direction" ,  "fid" ,
+                "gcd_m" ,  "location.lat_prior" ,"location.long_prior" ,
+                "speed_mhr" , "stopover" , "study.site","tag.beacon.frequency" ,"tag.manufacturer.name" ,
+                "tag.mass" , "tag.model" ,"tag.serial.no" , "timestamp" )
 
 
+
+sort(names(all_dat))
+
+all_dat <- all_dat %>%
+  dplyr::select("id","tag.id" ,  "minute",  "hour", "day", "month", "year",  
+                "location.lat", "location.long")                                      
+                               
+quout <- left_join(qb,all_dat, by = "id") %>%
+  dplyr::select(-fid) %>%
+  mutate(date_time = ymd_hms(date_time)) %>%
+  filter(!is.na(location.lat))
+  
 
 # #save out file
 clean_save = quout %>% mutate(proj = "Mingnan")
-saveRDS(clean_save, file = file.path("output", "rekn_mignon_raw_20240123.rds"))
+saveRDS(clean_save, file = file.path("output", "rekn_mignon_raw_20240128.rds"))
 
 
 clean_sf <- st_as_sf(clean_save, coords = c("location.long", "location.lat"), crs = st_crs(4326))
-st_write(clean_sf, file.path(manual_edits, "rekn_qu_20240123.gpkg"), append = F)
+st_write(clean_sf, file.path(manual_edits, "rekn_qu_20240128.gpkg"), append = F)
 
 
 
@@ -460,13 +499,13 @@ bt <- bdd_det |>
     location.lat >= location.lat_prior ~ "northward",
     location.lat <= location.lat_prior~ "southward",
     .default = "NA"))%>%
-  mutate(Event1 = Event)
+  mutate(Event1 = Event)%>%
   ungroup()
  
 all_dat = bt
 
-# idll <- bt|>
-#   dplyr::select("location.long", "location.lat", id)
+idll <- bt|>
+    dplyr::select("location.long", "location.lat", id)
 
 
 clean_sf <- st_as_sf(all_dat, coords = c("location.long", "location.lat"), crs = st_crs(4326))
@@ -474,26 +513,57 @@ st_write(clean_sf, file.path("output", "pt_john_20240123.gpkg"), append = F)
 
 
 
+## Post manual edits
+
+manual_edits <- file.path("output", "manual_edited_complete")
+johnedit <- read.csv(file.path( manual_edits, "pt_john_mig_all.csv")) %>%
+  mutate(tag.id = as.character(tag.id)) |> 
+  left_join(idll) %>%
+  mutate(direction = case_when(
+    breeding == "wintering"  ~ NA, 
+    stopover == "breeding" ~ NA,
+    .default = as.character(direction)))%>% 
+  dplyr::filter(!is.na(location.lat)) %>%
+  dplyr::select(-tag.id, -ddate, -day, -month, -year, -"location.long", -"location.lat")
+
+head(johnedit)
+
+johnedit <- johnedit %>% 
+  dplyr::select(-"animal.id" , -animal.ring.id, -animal.sex,  -deploy.on.date,
+                -"deploy.on.latitude", -"deploy.on.longitude", -gps.fix.type.raw, -"hour",
+                -lotek.crc.status, -minute, -proj, -sensor.type, -study.site, 
+                -tag.manufacturer.name, -tag.model, -timestamp, -Event1 )
+
+
+all_dat <- all_dat %>% dplyr::select(id, tag.id, day, month, year, ddate, location.lat, location.long, proj)
+
+
+johnout <- left_join(all_dat, johnedit, by = "id")%>%
+  dplyr::select(-fid)%>% 
+  mutate(date_time = ymd_hms(date_time))
 
 
 
+## Re edit the deploy date
+deploy_dates <- johnout %>%
+  dplyr::select(tag.id, date_time) %>% 
+  arrange(date_time,  by = tag.id) %>% 
+  slice_min(date_time, by = tag.id) %>% 
+  rename("deploy.on.date" = date_time) %>% 
+  distinct()%>%
+  mutate(deploy.on.date = as.character(deploy.on.date))
 
 
+johnout <- left_join(johnout, deploy_dates)
+
+# #save out file
+saveRDS(johnout, file = file.path("output", "rekn_john_20240123.rds"))
+#saveRDS(jgps , file = file.path("output", "rekn_johnson_raw_20240101.rds"))
+
+clean_sf <- st_as_sf(johnout, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path(manual_edits, "rekn_john_mig_20240123.gpkg"), append = F)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-saveRDS(jgps , file = file.path("output", "rekn_johnson_raw_20240101.rds"))
 
 
 #########################################################################
@@ -608,10 +678,107 @@ ndat_out <- bind_rows(ndat, ndat3v) %>%
   mutate(tag.model = "Lotek PinPoint GPS-Argos 75", 
          tag.manufacturer.name = "Lotek", 
          deploy.on.date = as.character(deploy.on.date),
-         animal.ring.id = as.character(animal.ring.id))
+         animal.ring.id = as.character(animal.ring.id))%>%
+  mutate(year = year(date_time )) %>%
+  mutate(month = month(date_time ),
+         day = day(date_time),
+         hour = hour(date_time),
+         minute = minute(date_time))%>%
+  filter(!is.na(location.long)) %>%
+  filter(!is.na(location.lat))%>%
+  filter(year < 2025)
 
 
-saveRDS(ndat_out, file = file.path("output", "rekn_newstead_20240101.rds"))
+all_dat <- ndat_out %>%
+  mutate(id = seq(1, length(ndat_out$visible), 1))
+
+
+##############################
+# durations
+
+# Duration between pings/ 
+bdd <- all_dat |> 
+  mutate(ddate = ymd_hms(date_time)) |> 
+  arrange(tag.id, ddate)
+
+bdd_dur <- bdd  |> 
+  group_by(tag.id) |> 
+  mutate(diff = difftime(ddate, lag(ddate),  units = c("hours")), 
+         diff = as.numeric(diff))%>%
+  dplyr::filter(diff >0)
+
+
+## Calculate distance between points and bearing
+
+bdd_det <- bdd_dur  |> 
+  #filter(tag.id == 230318) |> 
+  group_by(tag.id) |> 
+  mutate(location.long_prior = lag(location.long, 1L),
+         location.lat_prior = lag(location.lat, 1L)) %>%
+  rowwise() %>%
+  mutate(gcd_m = distHaversine(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+         bearing = bearing(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+         speed_mhr = round((gcd_m/diff)/1000,1))%>%
+  ungroup()
+
+# determine the location of direction 
+
+head(bdd_det)
+
+
+# stop over = within 25 km of previous point? 
+
+bt <- bdd_det |> 
+  dplyr::select(id, tag.id, ddate, day, month, year,location.long, location.lat,location.lat_prior, diff, gcd_m,bearing, speed_mhr) %>%
+  group_by(tag.id)%>%
+  mutate(stopover = ifelse( gcd_m <= 25000, "stop-over", "migration")) %>%
+  mutate(breeding = case_when(
+    stopover == "stop-over" & month %in% c(6,7,8) & location.lat > 60 ~ "breeding", 
+    .default = "NA")) %>%
+  mutate(direction = case_when(
+    location.lat >= location.lat_prior ~ "northward", 
+    location.lat <= location.lat_prior~ "southward",
+    .default = "NA"))%>%
+  ungroup()
+
+
+idll <- bt|> 
+  dplyr::select("location.long", "location.lat", id, tag.id)
+
+
+clean_sf <- st_as_sf(bt, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "pt_newstead_20240123.gpkg"), append = F)
+
+
+## Post manual edits
+
+manual_edits <- file.path("output", "manual_edited_complete")
+newedit <- read.csv(file.path( manual_edits, "pt_new_mig_all.csv")) %>%
+  mutate(tag.id = as.character(tag.id)) |> 
+  left_join(idll) %>%
+  mutate(direction = case_when(
+    breeding == "wintering"  ~ NA, 
+    stopover == "breeding" ~ NA,
+    .default = as.character(direction)))%>% 
+  dplyr::filter(!is.na(location.lat)) %>%
+  dplyr::select(-tag.id, -ddate, -day, -month, -year, -"location.long", -"location.lat")
+
+
+head(newedit)
+
+newout <- left_join(all_dat, newedit, by = "id")%>%
+  dplyr::select(-fid)
+
+
+
+# #save out file
+saveRDS(newout, file = file.path("output", "rekn_newstead_20240123.rds"))
+
+
+clean_sf <- st_as_sf(newout, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path(manual_edits, "rekn_newstead_mig_20240123.gpkg"), append = F)
+
+
 
 
 
