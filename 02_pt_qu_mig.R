@@ -50,7 +50,7 @@ qb <- qb %>%
   dplyr::select(- UTC_Date, -UTC_Time, -day, -hour, -minute)
 
 
-qout <- left_join(qb, qref2, by = "tag.id")
+qout <- left_join(qb, qref, by = "tag.id")
 
 # filter out Quebec 
 qb <- qout |> 
@@ -122,7 +122,16 @@ all_dat <- qb  %>%
   mutate(id = seq(1, length(qb$tag.id), 1)) %>%
   dplyr::select(-year, -month) %>%
   filter(!is.na(location.lat))%>%
-  dplyr::mutate(tag.mass = as.numeric(tag.mass))
+  dplyr::mutate(tag.mass = as.numeric(tag.mass))%>% 
+  mutate(tag.model = case_when(
+    tag.model == "lotek PinPoint 75" ~ "Lotek PinPoint GPS-Argos 75",
+    tag.model == "Sunbird Lotek" ~ "Sunbird Solar Argos",
+    TRUE ~ as.character(tag.model))) %>%
+  dplyr::select(-old.tag.id, -Tag.ID)%>%
+  filter(animal.taxon == "Calidris canutus") |> 
+  rename("animal.comments" = comment.for.not.working)
+
+
 
 
 # #save out file
