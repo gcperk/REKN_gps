@@ -52,6 +52,10 @@ unique(all$visible)
 unique(all$import.marked.outlier)
 
 
+# write out: 
+write.csv(all, file.path("output", "xall_rekn_20240203.csv"), row.names = F)
+clean_sf <- st_as_sf(all, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+st_write(clean_sf, file.path("output", "xall_rekn_20240203.gpkg"), append = F)
 
 
 # extract reference information 
@@ -81,21 +85,88 @@ unique(loc$gps.fix.type.raw)
 ## How many tags and types of tage 
 unique(ref$tag.model)
 
+#length(unique(ref$tag.id))
+#29+66+1+5+22+43+42+10+15+15+2+36+34+3
+
+
+### SUMMARY OF ANIMALS 
+
+# tags per project 
+tag.proj <-  ref %>% 
+  dplyr::select(tag.id, proj) %>%
+  group_by( proj) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+# mingnon tags not matching ##
+
+
 # tag number per tag type
 tag.types <- ref %>% 
   dplyr::select(tag.id, tag.model, proj) %>%
   group_by(tag.model, proj) |> 
   summarise(no.of.tags = length(unique(tag.id)))
 
-
 # type of fix per tag model (accuracy per tag type - only relevant for pinpoint)
 tag.types.model <- loc %>% 
   dplyr::select(tag.id, tag.model, proj, gps.fix.type.raw) %>%
-  group_by( gps.fix.type.raw, tag.model) |> 
+  group_by(gps.fix.type.raw, tag.model) |> 
   summarise(no.of.tags = length(unique(tag.id)))
   
 
-all <- all  %>%
+### Capture location 
+
+study.site <- ref |> 
+  dplyr::select(tag.id, study.site, deploy.on.date, deploy.on.latitude,  deploy.on.longitude ) |> 
+  group_by(study.site) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+capture_loc <- ref |> 
+  dplyr::select(tag.id, study.site,  animal.life.stage, animal.sex, deploy.on.date, deploy.on.latitude,  deploy.on.longitude ) %>%
+  distinct() %>%
+  st_as_sf( coords = c("deploy.on.longitude", "deploy.on.latitude"), crs = 4326)
+
+# write out capture locations 
+write_sf(capture_loc, file.path(raw_dat , "maps", "capture_locations.gpkg"))
+
+
+## Age of individuals 
+
+## capture age and sex 
+sex_sum <- ref |> 
+  dplyr::select(tag.id, study.site, proj, animal.life.stage, animal.sex) |> 
+  group_by(animal.sex,proj) |> 
+   summarise(no.of.tags = length(unique(tag.id)))
+
+age_sum <- ref |> 
+  dplyr::select(tag.id, study.site, proj, animal.life.stage) |> 
+  group_by(animal.life.stage , study.site) |> 
+  #group_by(animal.life.stage ) |> 
+    summarise(no.of.tags = length(unique(tag.id)))
+
+
+
+# ring-id for subpop information
+
+rids <- ref %>%
+  dplyr::select(animal.ring.id, tag.id, proj) %>% 
+  group_by(animal.ring.id, tag.id ) %>%
+  count()
+
+
+
+
+
+
+
+
+
+
+
+
+# calculate the duration of the tags total 
+
+
+dloc <- loc   %>%
   mutate(date_time = ymd_hms(timestamp))%>%
   mutate(year = year(date_time )) %>%
   mutate(month = month(date_time ),
@@ -103,7 +174,6 @@ all <- all  %>%
          hour = hour(date_time),
          minute = minute(date_time)) %>%
   filter(year<=2023)
-
 
 # # missing tag information 
 # nas <- all %>%
@@ -113,68 +183,14 @@ all <- all  %>%
 # 
 # unique(all$tag.model)
 
-# write out: 
-write.csv(all, file.path("output", "xall_rekn_20240203.csv"), row.names = F)
-clean_sf <- st_as_sf(all, coords = c("location.long", "location.lat"), crs = st_crs(4326))
-st_write(clean_sf, file.path("output", "xall_rekn_20240203.gpkg"), append = F)
-
-unique(all$proj)
 
 
 
-########################
-
-# subsets
-
-########################
-
-# remove columns
-clean = all %>% 
-  dplyr::select(-argos.altitude, -import.marked.outlier, -deploy.on.date, 
-                -deployment.comments, -deploy.on.measurements, -study.site,
-                -height.above.ellipsoid,-capture.timestamp,
-                 -deploy.on.person, 
-                -attachment.type, -algorithm.marked.outlier, -visible, -timestamp,
-                -import.marked.outlier)
-length(clean$location.long)
-
-# 
-# clean = clean %>% 
-#   filter(!is.na(location.long), 
-#          !is.na(location.lat))
-# #length(clean$location.long)
-# #[1]  81949
-# 
-# # filter by accuracy levels 
-# unique(clean$argos.lc) #""  "2" "1" "3" "Z" "B" "0" "A" NA 
-# 
-# clean <- clean %>% 
-#   dplyr::mutate(argos.lc = case_when(
-#     is.na(argos.lc) ~ "",
-#     TRUE ~ as.character(argos.lc)))%>%
-#   dplyr::filter(argos.lc != "Z")#%>%
-#   #dplyr::filter(argos.lc != "A")%>% 
-#   #dplyr::filter(argos.lc != "B")
-# 
-# # filter by accuracy levels 
-# unique(clean$lotek.crc.status) # "G"  "F"  "" "C" NA"OK" "OK(corrected)"
-# 
-# clean <- clean %>% 
-#   dplyr::mutate(lotek.crc.status = case_when(
-#     is.na(lotek.crc.status) ~ "",
-#     TRUE ~ as.character(lotek.crc.status)))%>%
-#   dplyr::filter(lotek.crc.status != "E")
 
 
-#length(clean$location.long)
-# 79751
 
 
-write.csv(clean, file.path("output", "xsubset_rekn_20240123.csv"), row.names = F)
-#saveRDS(clean, file = file.path("output", "xall_rekn_20231102.rds"))
 
-clean_sf <- st_as_sf(clean, coords = c("location.long", "location.lat"), crs = st_crs(4326))
-st_write(clean_sf, file.path("output", "xclean_rekn_20240123.gpkg"), append = F)
 
 
 
@@ -186,10 +202,8 @@ st_write(clean_sf, file.path("output", "xclean_rekn_20240123.gpkg"), append = F)
 ## Get list of Ring ids
 # ring id 
 
-unique(clean$animal.ring.id)
-
-rids <- clean %>%
-  dplyr::select(animal.ring.id, proj) %>% 
+rids <- dloc %>%
+  dplyr::select(animal.ring.id, tag.id, proj) %>% 
   group_by(animal.ring.id)%>%
   count()
 
