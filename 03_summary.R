@@ -15,20 +15,294 @@ library(dplyr)
 raw_dat <- file.path("output")
 out_dat <- file.path("output", "report")
 
-bdat <- read.csv(file.path(raw_dat ,"xall_rekn_20240203.csv"))
+all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv"))
 
-# bb <- bdat %>% 
-#   filter(proj == "Newstead") %>% 
-#   select(tag.id,animal.id) |> 
-#   distinct()
-
-
-model.id <- bdat |> 
-  dplyr::select(tag.id, proj) |> 
+# extract reference information 
+  ref <- all %>% 
+  dplyr::select(animal.comments, animal.id, animal.life.stage, animal.marker.id, 
+                animal.mass,animal.ring.id, animal.sex, animal.taxon, "attachment.type", 
+                "capture.timestamp",  "deploy.on.date" ,"deploy.on.latitude", "deploy.on.longitude" , 
+                "deploy.on.measurements", "deploy.on.person" , "deployment.comment", 
+                "duty.cycle", "sensor.type" , "tag.beacon.frequency"   ,   "tag.manufacturer.name",
+                "tag.mass", "tag.id", "tag.serial.no" ,  "tag.model", "study.site", proj)   %>%
   distinct()
 
-dat_tags <- unique(bdat$tag.id)
 
+loc <- all %>% dplyr::select("proj", id, "tag.id", tag.model, "location.lat" ,"location.long" ,  
+                             "date_time", "timestamp", "year",   "month",    "day" ,   "hour" ,    "minute" , 
+                             "argos.lc" , "lotek.crc.status", "gps.fix.type.raw" ,  
+                             "bearing" , "diff", "gcd_m",   "speed_mhr",  #"breeding" ,"direction" ,
+                             #"stopover", 
+                             "location.lat_prior" , "location.long_prior",                     
+                             "height.above.ellipsoid"  , "argos.altitude") %>%
+  unique()
+
+# clean up the spatial resolution # can remove these cols. 
+unique(loc$argos.lc)
+unique(loc$lotek.crc.status)
+unique(loc$gps.fix.type.raw)
+
+## How many tags and types of tage 
+unique(ref$tag.model)
+
+#length(unique(ref$tag.id))
+#29+66+1+5+22+43+42+10+15+15+2+36+34+3
+
+
+
+
+### SUMMARY OF ANIMALS 
+
+# tags per project 
+tag.proj <-  ref %>% 
+  dplyr::select(tag.id, proj) %>%
+  group_by( proj) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+
+# tag number per tag type
+tag.types <- ref %>% 
+  dplyr::select(tag.id, tag.model, proj) %>%
+  group_by(tag.model, proj) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+# type of fix per tag model (accuracy per tag type - only relevant for pinpoint)
+tag.types.model <- loc %>% 
+  dplyr::select(tag.id, tag.model, proj, gps.fix.type.raw) %>%
+  group_by(gps.fix.type.raw, tag.model) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+
+
+
+
+
+### Capture location 
+
+study.site <- ref |> 
+  dplyr::select(tag.id, study.site, deploy.on.date, deploy.on.latitude,  deploy.on.longitude ) |> 
+  group_by(study.site) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+
+study.site.proj <- ref |> 
+  dplyr::select(tag.id, study.site, proj ) |> 
+  group_by(study.site, proj) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+
+capture_loc <- ref |> 
+  dplyr::select(tag.id, study.site,  animal.life.stage, animal.sex, deploy.on.date, deploy.on.latitude,  deploy.on.longitude ) %>%
+  distinct() %>%
+  st_as_sf( coords = c("deploy.on.longitude", "deploy.on.latitude"), crs = 4326)
+
+# write out capture locations 
+#write_sf(capture_loc, file.path(raw_dat , "maps", "capture_locations.gpkg"))
+
+
+
+
+
+### Summary statistics
+
+## Age / sex of individuals 
+
+## capture age and sex 
+sex_sum <- ref |> 
+  dplyr::select(tag.id, study.site, proj, animal.life.stage, animal.sex) |> 
+  group_by(animal.sex,proj) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+age_sum <- ref |> 
+  dplyr::select(tag.id, study.site, proj, animal.life.stage) |> 
+  group_by(animal.life.stage , study.site) |> 
+  #group_by(animal.life.stage ) |> 
+  summarise(no.of.tags = length(unique(tag.id)))
+
+
+# ring-id for subpop information
+rids <- ref %>%
+  dplyr::select(animal.ring.id, tag.id, proj) %>% 
+  group_by(animal.ring.id, tag.id ) %>%
+  count()
+
+
+
+
+
+
+### Duration statistics 
+
+range(loc$year)
+
+table_max <- loc %>% 
+  dplyr::mutate(date_time = ymd_hms(date_time)) |> 
+  dplyr::select(tag.id, date_time) %>% 
+  # group_by(tag.local.identifier)%>%  -->
+  slice_max(date_time, by = tag.id) |> 
+  distinct()
+colnames(table_max)<- c("tag.id","max") 
+
+table_min <-  loc %>% 
+  dplyr::mutate(date_time = ymd_hms(date_time)) |>   
+  dplyr::select(tag.id, date_time) %>%  
+  # group_by(tag.local.identifier)%>%   
+  slice_min(date_time, by = tag.id)  |> 
+  distinct()
+
+colnames(table_min)<- c("tag.id", "min")  
+
+dur <- left_join(table_max, table_min, by = join_by(tag.id)) %>%  
+  distinct() %>%  
+  dplyr::mutate(duration = max - min ) %>%  
+  mutate(dur_min = round(as.numeric(duration)/60,1))%>%  
+  mutate(dur_hrs = round(as.numeric(dur_min)/60,1))%>%  
+  mutate(dur_days = round( dur_hrs/24,1))%>%  
+  mutate(year = year(min))  
+
+dur_plot <- ggplot(dur, aes(y=factor(tag.id))) +  
+  geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id)), size=1)+  
+  xlab("Date") + ylab("Tag")   
+
+dur_plot  
+
+dur_hist <- ggplot(dur, aes(x= dur_days))+  
+  geom_histogram() + #fill="white", position="dodge") +  
+  #facet_wrap(~year)+  
+  xlab("duration (days)")   
+
+dur_hist  
+
+p_duration <- ggplot(dloc, aes(factor(month), fill = factor(year)))+  
+  geom_bar(position = "dodge") +  
+  #xlim(1,12)+  
+  #facet_wrap(~tag.local.identifier)+  
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))  
+
+
+
+
+
+
+# duration of tag per tag type 
+
+dur_type <- dur %>% 
+  left_join(ref) 
+
+dur_hist <- ggplot(dur_type, aes(x= dur_days)) +  
+  geom_histogram(position = "dodge") + #fill="white", position="dodge") +  
+  facet_wrap(~tag.model)+  
+  xlab("duration (days)")  
+
+dur_hist
+
+aa <- dur_type |> select(tag.id , dur_days, tag.model, proj)%>%
+  distinct()
+
+p1 <- ggplot(aa, aes(x= dur_days)) +
+  geom_histogram()
+
+
+dur_type_sum <- dur_type |> select(tag.id , dur_days, tag.model)%>%
+  distinct()%>% 
+  group_by( tag.model) |> 
+  summarise(mean_dur = mean(dur_days), 
+            sd = sd(dur_days))
+
+ggplot(dur_type_sum) +
+  geom_bar( aes(x=tag.model , y=mean_dur), stat="identity", fill="skyblue", alpha=0.7) +
+  geom_errorbar( aes(x=tag.model, ymin=mean_dur -sd, ymax=mean_dur+sd), width=0.4, colour="orange", alpha=0.9, size=1.3)
+
+
+ggplot(dur_type, aes(x=tag.model, y=dur_days)) + 
+  geom_bar(stat = "identity")
+
+
+
+# add the group by
+ggplot(dur_type, aes(tag.id, dur_days,)) +
+  geom_col(aes(fill = proj))#, position = position_stack(reverse = TRUE))
+
+ggplot(dur_type, aes(x = forcats::fct_reorder(as.factor(tag.id), dur_days), y = dur_days)) +
+  geom_col(aes(fill = proj))+
+  facet_wrap(~proj, scales = "free_x")#, position = position_stack(reverse = TRUE))
+
+
+# 
+# 
+# # duration looking at dates 
+# 
+# # plot total duration of collar data 
+# ggplot(dur, aes(y=factor(tag.id))) +
+#   geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id)), linewidth = 1)+
+#   xlab("Date") + ylab("Tag") 
+# 
+# 
+# # plot total duration of collar data 
+# ggplot(dur, aes(y=factor(tag.id))) +
+#   geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id),colour = proj), linewidth = 1)+
+#   scale_color_discrete()+
+#   xlab("Date") + ylab("Tag") 
+# 
+# 
+# # plot total duration of collar data 
+# ggplot(dur, aes(y=factor(proj))) +
+#   geom_segment(aes(x=min, xend=max, y=factor(proj), yend=factor(proj), colour = proj), linewidth = 3)+
+#   scale_color_discrete()+
+#   xlab("Date") + ylab("Tag") 
+# 
+# 
+# # plot total duration of collar data 
+# ggplot(dur, aes(y=factor(tag.id))) +
+#   geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id)), linewidth = 1)+
+#   xlab("Date") + ylab("Tag") +
+#   facet_wrap(~proj, scales = "free")
+# 
+
+
+
+
+
+
+#####################################################################################
+
+# seasonality by tag 
+
+bs <- all |> 
+  dplyr::select(month, year, tag.id) %>% 
+  distinct() %>%
+  group_by(month, year) %>%
+  count()
+# mutate(sdate = ymd(ddate))
+
+# no of tags per month (all years)
+
+ggplot(bs, aes(x = as.factor(month), y = n)) +
+  geom_col() 
+
+
+# By year 
+ggplot(bs, aes(x = as.factor(month), y = n, fill = as.factor(year))) +
+  geom_col(position = position_dodge2(width = 0.9, preserve = "single"))+
+  #geom_bar(stat = "identity", position = "dodge") #+
+  facet_wrap(~year)#, position = position_stack(reverse = TRUE))
+
+
+####################################################################################
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
 
 ######################################################################
 ## Filter tags which cant be used 
@@ -108,154 +382,6 @@ p_model <- ggplot( tag_model, aes(tag.model)) +
 
 
 
-##############################################################
-## duration of tag 
-#############################################################
-
-## 1. Min and Max - date - duration 
-
-library(dplyr)
-library(lubridate)
-
-bdd <- bdd |> 
-  mutate(ddate = ymd_hms(date_time))
-
-# calculate the minimum and max dates per collar 
-table_max <- bdd |> 
-  dplyr::select(tag.id, ddate) |> # select the columns of interest
-  slice_max(ddate, by = tag.id)%>%
-  distinct()  # select the max value of date_time, per animal.id
-colnames(table_max)<- c("tag.id","max") 
-
-table_min <- bdd |> 
-  dplyr::select(tag.id, ddate) |> 
-  slice_min(ddate, by = tag.id) 
-
-colnames(table_min)<- c("tag.id","min")
-
-# merge the two tables together and calculate the duration 
-dur <- left_join(table_max, table_min, by = join_by(tag.id)) |> 
-  distinct() |> 
-  mutate(duration = max - min) |> # calculate duration (default is days)
-  mutate(dur_raw = round(duration, 1)) |> # format the duration 
-  mutate(dur_hrs = round(as.numeric(dur_raw),1)) |> # convert to hours
-  mutate(dur_days = round(as.numeric(dur_hrs)/24,1)) |> # convert to hours
-  mutate(year_start = year(min), 
-         year_end = year(max))
-
-# add the group by 
-
-bids <- bcat %>% 
-  dplyr::select(tag.id, proj, tag.model)
-
-dur <- left_join(dur, bids)
-
-# plot total duration of collar data 
-#ggplot(dur, aes(dur_hrs)) +
-#  geom_point(aes(fill = tag.id) )
-
-ggplot(dur, aes(tag.id, dur_hrs,)) +
-  geom_col(aes(fill = proj))#, position = position_stack(reverse = TRUE))
-
-ggplot(dur, aes(x = forcats::fct_reorder(tag.id, dur_days), y = dur_days)) +
-  geom_col(aes(fill = proj))+
-  facet_wrap(~proj, scales = "free_x")#, position = position_stack(reverse = TRUE))
-
-
-
-
-# average duration by project 
-
-ggplot(dur, aes(tag.id, dur_hrs,)) +
-  geom_col(aes(fill =tag.model))#, position = position_stack(reverse = TRUE))
-
-
-
-# total duration by tag 
-dur_tag <- dur |> 
-  group_by(tag.model) |> 
-  summarise(min_days = min(dur_days),
-            max_days = max(dur_days),
-            mean_days = mean(dur_days))
-
-dur_tag 
-
-
-
-# duration looking at dates 
-
-
-# plot total duration of collar data 
-ggplot(dur, aes(y=factor(tag.id))) +
-  geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id)), linewidth = 1)+
-  xlab("Date") + ylab("Tag") 
-
-
-# plot total duration of collar data 
-ggplot(dur, aes(y=factor(tag.id))) +
-  geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id),colour = proj), linewidth = 1)+
-  scale_color_discrete()+
-  xlab("Date") + ylab("Tag") 
-
-
-# plot total duration of collar data 
-ggplot(dur, aes(y=factor(proj))) +
-  geom_segment(aes(x=min, xend=max, y=factor(proj), yend=factor(proj), colour = proj), linewidth = 3)+
-  scale_color_discrete()+
-  xlab("Date") + ylab("Tag") 
-
-
-# plot total duration of collar data 
-ggplot(dur, aes(y=factor(tag.id))) +
-  geom_segment(aes(x=min, xend=max, y=factor(tag.id), yend=factor(tag.id)), linewidth = 1)+
-  xlab("Date") + ylab("Tag") +
-  facet_wrap(~proj, scales = "free")
-
-
-
-#####################################################################################
-
-# seasonality 
-
-bs <- bdd |> 
-  dplyr::select(month, year, tag.id) %>% 
-  distinct() %>%
-  group_by(month, year) %>%
-  count()
-# mutate(sdate = ymd(ddate))
-
-# no of tags per month (all years)
-
-ggplot(bs, aes(x = as.factor(month), y = n)) +
-  geom_col() 
-
-
-# By year 
-ggplot(bs, aes(x = as.factor(month), y = n, fill = as.factor(year))) +
-  geom_col(position = position_dodge2(width = 0.9, preserve = "single"))+
-  #geom_bar(stat = "identity", position = "dodge") #+
-  facet_wrap(~year)#, position = position_stack(reverse = TRUE))
-
-
-####################################################################################
-
-#
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -264,21 +390,11 @@ ggplot(bs, aes(x = as.factor(month), y = n, fill = as.factor(year))) +
 #####################################################################################
 
 # Duration between pings/ 
-bdd <- bdd |> 
+bdd <- all |> 
   mutate(ddate = ymd_hms(date_time)) |> 
   arrange(tag.id, ddate,tag.model)
 
-bdd_dur <- bdd  |> 
-  #mutate(time = as.POSIXct(date_time, format = "%y/%d/%m %H:%M:%S")) |> 
-  group_by(tag.id) |> 
-  mutate(diff = difftime(ddate, lag(ddate),  units = c("hours")), 
-         diff = as.numeric(diff))
-
-# we can see a big range in the time intervals for the fixes
-range(bdd_dur$diff, na.rm = TRUE)
-
-
-ggplot(bdd_dur, aes(tag.id, diff)) +
+ggplot(bdd, aes(tag.id, diff)) +
   geom_col(aes(fill = tag.model))#, position = position_stack(reverse = TRUE))
 
 
@@ -315,27 +431,6 @@ bdd_dur_sum <- left_join(bdd_dur_sum, bcat)%>%
 ggplot(bdd_dur_sum, aes(mean, fill = tag.model)) +
   geom_bar(stat = "identity")#, position = position_stack(reverse = TRUE))
 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
  
  
  
