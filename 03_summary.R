@@ -12,43 +12,38 @@ library(viridis)
 library(dplyr)
 
 
-
 raw_dat <- file.path("output")
 out_dat <- file.path("output", "report")
 
-bdat <- read.csv(file.path(raw_dat ,"xsubset_rekn_20240123.csv"))
+bdat <- read.csv(file.path(raw_dat ,"xall_rekn_20240203.csv"))
+
+# bb <- bdat %>% 
+#   filter(proj == "Newstead") %>% 
+#   select(tag.id,animal.id) |> 
+#   distinct()
+
 
 model.id <- bdat |> 
-  dplyr::select(tag.id, tag.model) |> 
+  dplyr::select(tag.id, proj) |> 
   distinct()
 
-unique(bdat$tag.model)
-
-
-bdat 
-
-
-
-# basic summaries 
-
-# no of dataset
-
-proj <- unique(bdat$proj)
-
-
-no_ids_proj <- bdat %>% 
-  group_by(proj, tag.id, animal.id)%>%
-  count()
-
-#write.csv(no_ids_proj, file.path(out_dat, "proj_animalid.csv"), row.names = T)
+dat_tags <- unique(bdat$tag.id)
 
 
 ######################################################################
 ## Filter tags which cant be used 
 
 bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv"))
-bcat <- left_join(bcat, model.id)
 
+edit_tags <- unique(bcat$tag.id)
+
+
+xx <- setdiff(edit_tags, dat_tags)
+# these tags already 
+#213948 229367 232341 232342 232344 239414 242699
+
+
+bcat <- left_join(bcat, model.id)
 
 # filter the tags which cant be used 
 cant_use <- bcat |> 
