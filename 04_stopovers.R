@@ -114,131 +114,11 @@ type_dur <- bdd_dur |>
 
 
 
-############################################################################
-## Calculate distance between points and bearing
-
-bdd_det <- bdd_dur  |> 
-  #filter(tag.id == 230318) |> 
-  group_by(tag.id) |> 
-  mutate(location.long_prior = lag(location.long, 1L),
-         location.lat_prior = lag(location.lat, 1L)) %>%
-  rowwise() %>%
-  mutate(gcd_km = distHaversine(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
-         bearing = bearing(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
-         speed_kmhr = round((gcd_km/diff)/1000,1))
-
-
-
-
-
-
-#  boxplot((speed_kmhr) ~ month, data = bdd_det, 
-#          ylim = c(0, 1000), 
-#          ylab = "km/day", xlab="day of year", pch = 19, cex = 0.5, col = rgb(0, 0, 0, 0.5))
- 
-#aa <- aa[1:500,]
-# 
-# ggplot(subset(aa, speed_kmhr>0), aes(x = month, y = speed_kmhr)) + 
-#   facet_grid(~tag.id) + geom_point(alpha = 0.3) + 
-#   stat_smooth() + scale_y_log10() +
-#   ylab("Speed (km/hr)") +  xlab("Hour of day")
-
-
-
-# Assign preliminary breeding and migration routes 
-
-bdd_det <- bdd_det %>% 
-  group_by()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Extra notes 
-
-# alternatively using the adehabitat analysis - howver this seems to drop some points? 
-
- aa <- bdd_dur  %>%
-   filter(diff > 0) %>%
-   #filter(tag.id == 230318) %>%
-   dplyr::select(location.long, location.lat,ddate, tag.id) #%>% 
-  # group_by(date_time)%>%
-  # slice_max(date_time) %>%
-  # distinct()  # select the max value of date_time, per animal.id
- 
- aa$x = aa$location.long 
- aa$y = aa$location.lat
- 
- turtles.ltraj <- as.ltraj(xy = aa[,c("x","y")], 
-                           date = aa$ddate,
-                           id = aa$tag.id)
- 
- head( turtles.ltraj[[1]]) 
- 
- plot(turtles.ltraj)
- 
- #i<- fpt( turtles.ltraj, seq(300,1000,length=30))
- i<- fpt( turtles.ltraj,
-          seq(0.01,1,length=30))
- 
- 
- varlogfpt(i,graph=TRUE)
-
- 
- #distance,between successive locations (meters),
- #dt (the difference in seconds between relocations),
- #R2n (the squared distance between the first relocation of the trajectory and the current relocation), and
- #two angle measurements (absolute and relative). relative and absolute turning angles (in radians),
- # These are relative turn angles, with values between -180 and 180 degrees, 
- # meaning that they are calculated from the previous bearing of the animals. 
- # These are different than absolute turning angles, which are not related to the previous bearing.
- # It automatically calculates the distance between successive locations (meters), 
- # relative and absolute turning angles (in radians), and time interval between successive locations (in seconds)
- 
- 
- 
-# # generate track data 
-# data(capreochiz) 
-# head(capreochiz) 
-# ##Createanobjectofclass"ltraj" 
-# cap<-as.ltraj(xy=capreochiz[,c("x","y")],
-#               date=capreochiz$date, 
-#               id="Roe.Deer",
-#               typeII=TRUE, 
-#               infolocs=capreochiz[,4:8]) 
-# 
-# data(puechcirc) 
-# i<-fpt(puechcirc,seq(300,1000,length=30))
-# plot(i,scale=500, warn=FALSE) 
-# toto<-meanfpt(i) 
-# toto 
-
-
-attr(toto,"radii") 
-toto<-varlogfpt(i) 
-toto 
-attr(toto,"radii")
- 
- 
 
 
 
 
 # Geographic distributon of tags
-
-```{r, echo=FALSE}
 
 rf_sf <- sf::st_as_sf(clean, coords = c("location.long","location.lat"), crs = 4326, agr = "constant")
 #st_write(rf_sf, file.path("output", "all_rekn_20230918.gpkg"))
@@ -263,9 +143,6 @@ global <- ggplot(data = Americas) +
 global
 
 
-```
-
-
 # Geographic distribution of all tracks with estimated groupings: 
 
 
@@ -280,7 +157,6 @@ global
 These are estimateed groupings based on potential analysis questions. 
 
 
-```{r}
 
 a <- sort(unique(clean$tag.local.identifier ))
 
