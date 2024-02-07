@@ -1,18 +1,3 @@
----
-title: "02_Summary"
-author: "Gen Perkins"
-date: "2023-09-19"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
-```
-
-## Summary of all tracks: 
-
-
-```{r}
 
 #library(leaflet)
 #library(RColorBrewer)
@@ -89,6 +74,8 @@ unique(ref$tag.model)
 #29+66+1+5+22+43+42+10+15+15+2+36+34+3
 
 
+
+
 ### SUMMARY OF ANIMALS 
 
 # tags per project 
@@ -127,12 +114,6 @@ capture_loc <- ref |>
 
 # write out capture locations 
 write_sf(capture_loc, file.path(raw_dat , "maps", "capture_locations.gpkg"))
-
-
-
-
-
-
 
 
 
@@ -249,10 +230,4 @@ dur_hist <- ggplot(dur_type, aes(x= dur_days)) +
 
 dur_hist
 
-    
-```
-
-
-
-
-
+  
