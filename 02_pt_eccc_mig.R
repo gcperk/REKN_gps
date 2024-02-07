@@ -68,10 +68,10 @@ all_dat <- all_dat %>%
     tag.model == "PinPoint 75" ~ "Lotek PinPoint GPS-Argos 75", 
     tag.model ==  "Sunbird" ~ "Sunbird Solar Argos",
     tag.model ==  "sunbird" ~ "Sunbird Solar Argos",
-    tag.model == "microwave telemetry"~ "Solar 2g PTT",
+    tag.model == "microwave telemetry"~ "Solar 2-g PTT",
     .default = as.character(tag.model))) %>%
   mutate(tag.manufacturer.name = case_when(
-    tag.model == "Solar 2g PTT" ~ "Microwave Telemetry", 
+    tag.model == "Solar 2-g PTT" ~ "Microwave Telemetry", 
     TRUE ~ as.character(tag.manufacturer.name)))
 
 
