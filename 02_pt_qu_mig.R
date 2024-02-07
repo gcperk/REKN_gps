@@ -126,6 +126,7 @@ all_dat <- qb  %>%
   mutate(tag.model = case_when(
     tag.model == "lotek PinPoint 75" ~ "Lotek PinPoint GPS-Argos 75",
     tag.model == "Sunbird Lotek" ~ "Sunbird Solar Argos",
+    #tag.model == "PTT solarLotek" ~ "Solar 2-g PTT",
     TRUE ~ as.character(tag.model))) %>%
   dplyr::select(-old.tag.id, -Tag.ID)%>%
   filter(animal.taxon == "Calidris canutus") |> 
