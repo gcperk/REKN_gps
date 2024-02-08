@@ -260,3 +260,70 @@ clean_save = ospring %>% mutate(proj = "spring_USFWS")
 saveRDS(clean_save, file = file.path("output", "rekn_spring_usfws_20240129.rds"))
 
 ###############################################
+
+
+
+# # generate output file for manual review for atlantic
+# 
+# out <- at_tag %>%
+#   mutate(year = year(date_time )) %>%
+#   mutate(month = month(date_time ),
+#          day = day(date_time),
+#          hour = hour(date_time),
+#          minute = minute(date_time)) |> 
+#   filter(location.lat < 90) |> 
+#   filter(location.lat > -90) |> 
+#   filter(location.long <180)
+# 
+# 
+# ##############################
+# # durations
+# 
+# # Duration between pings/
+# bdd <- out  |>
+#   mutate(ddate = ymd_hms(date_time)) |>
+#   arrange(tag.id, ddate)
+# 
+# bdd_dur <- bdd  |>
+#   group_by(tag.id) |>
+#   mutate(diff = difftime(ddate, lag(ddate),  units = c("hours")),
+#          diff = as.numeric(diff))%>%
+#   dplyr::filter(diff >0)
+# 
+# 
+# ## Calculate distance between points and bearing
+# 
+# bdd_det <- bdd_dur  |>
+#   #filter(tag.id == 230318) |>
+#   group_by(tag.id) |>
+#   mutate(location.long_prior = lag(location.long, 1L),
+#          location.lat_prior = lag(location.lat, 1L)) %>%
+#   rowwise() %>%
+#   mutate(gcd_m = distHaversine(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+#          bearing = bearing(c(location.long_prior,location.lat_prior), c(location.long, location.lat)),
+#          speed_mhr = round((gcd_m/diff)/1000,1))%>%
+#   ungroup()
+# 
+# # determine the location of direction
+# 
+# #head(bdd_det)
+# #stop over = within 25 km of previous point?
+# 
+# bt <- bdd_det |>
+#   dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw",
+#                 "lotek.crc.status", "argos.lc","year", "month", "day" , "hour", "minute",
+#                 "diff" , "location.long_prior","location.lat_prior","gcd_m",
+#                 "bearing" , "speed_mhr") %>%
+#   group_by(tag.id)%>%
+#   mutate(stopover = ifelse( gcd_m <= 25000, "stop-over", "migration")) %>%
+#   mutate(breeding = case_when(
+#     stopover == "stop-over" & month %in% c(6,7,8) & location.lat > 60 ~ "breeding",
+#     .default = "NA")) %>%
+#   mutate(direction = case_when(
+#     location.lat >= location.lat_prior ~ "northward",
+#     location.lat <= location.lat_prior~ "southward",
+#     .default = "NA"))%>%
+#   ungroup()
+# 
+# clean_sf <- st_as_sf(bt, coords = c("location.long", "location.lat"), crs = st_crs(4326))
+# st_write(clean_sf, file.path("output", "rekn_atlantic_20240207.gpkg"), append = F)
