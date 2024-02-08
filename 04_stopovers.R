@@ -11,12 +11,67 @@ require(recurse)
 require(scales)
 library(adehabitatLT)
 
-
-
 raw_dat <- file.path("output")
 out_dat <- file.path("output", "report")
 
-bdat <- read.csv(file.path(raw_dat ,"xsubset_rekn_20240123.csv"))
+# read in the final data 
+
+all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv"))
+
+# generate a direction subset to merge edited file 
+
+sub_dir <- all |> 
+  dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw", 
+                "lotek.crc.status", "argos.lc","year", "month", "day" , "hour", "minute",                
+                "diff" , "location.long_prior","location.lat_prior","gcd_m",                  
+                "bearing" , "speed_mhr")            
+
+
+
+
+
+
+# join the manual edits together and merge to the main dataset 
+
+manual_edits <- list.files(file.path(raw_dat, "manual_edited_complete", "final"))
+
+man1 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_dom_mig_20240123.gpkg"))
+man2 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_john_mig_20240123.gpkg"))
+man3 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_ma_mig_20240123.gpkg"))
+man4 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_mils_mig_20240123.gpkg"))
+man5 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_newstead_mig_20240123.gpkg"))
+man6 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_oceanwinds_20240123.gpkg"))
+man7 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_20240128.gpkg" ))
+man8 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_sthcarolina_20240113.gpkg" ))
+man9 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_eccc_20240207.gpkg" ))
+man10 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_atlantic_20240207.gpkg" ))
+
+man_out <- bind_rows(man1, man2, man3, man4, man5, man6, man7, man8, man9, man10) %>% 
+  cbind(st_coordinates(.))%>%
+  rename(location.lat = Y, 
+         location.long = X)
+
+man_out <- man_out |> 
+  dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw", 
+                "lotek.crc.status", "argos.lc","year", "month", "day" , "hour", "minute",                
+                "diff" , "location.long_prior","location.lat_prior","gcd_m",                  
+                "bearing" , "speed_mhr")            
+
+
+
+
+
+
+
+
+
+
+
+
+#read in the raw data and match to the catergorised data sets
+
+
+
 
 ######################################################################
 ## Filter tags which cant be used 
