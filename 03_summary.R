@@ -301,46 +301,46 @@ ggplot(bs, aes(x = as.factor(month), y = n, fill = as.factor(year))) +
 
   
   
-  
-  
-
-######################################################################
-## Filter tags which cant be used 
-
-bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv"))
-
-edit_tags <- unique(bcat$tag.id)
-
-
-xx <- setdiff(edit_tags, dat_tags)
-# these tags already 
-#213948 229367 232341 232342 232344 239414 242699
-
-
-bcat <- left_join(bcat, model.id)
-
-# filter the tags which cant be used 
-cant_use <- bcat |> 
-  filter(Catergory == "Not usable") %>%
-  dplyr::select(tag.id) %>%
-  pull()
-
-
-bd <- bdat %>% 
-  filter(! tag.id %in% cant_use)
-
-# no of tags per project - note the duplicate atlantic and spring migration is still in this data set so 
-# need to manually remove the duplicates
-
-no_ids_proj <- bd %>% 
-  group_by(proj)%>%
-  summarise(n_tags = length(unique(tag.id)))
-
-
-bdd <- bd |> 
-  dplyr::select(location.long, location.lat, gps.fix.type.raw, lotek.crc.status, sensor.type,
-                argos.lc,  tag.model, date_time, year, month, day, hour, minute, tag.id)
-
+#   
+#   
+# 
+# ######################################################################
+# ## Filter tags which cant be used 
+# 
+# bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv"))
+# 
+# edit_tags <- unique(bcat$tag.id)
+# 
+# 
+# xx <- setdiff(edit_tags, dat_tags)
+# # these tags already 
+# #213948 229367 232341 232342 232344 239414 242699
+# 
+# 
+# bcat <- left_join(bcat, model.id)
+# 
+# # filter the tags which cant be used 
+# cant_use <- bcat |> 
+#   filter(Catergory == "Not usable") %>%
+#   dplyr::select(tag.id) %>%
+#   pull()
+# 
+# 
+# bd <- bdat %>% 
+#   filter(! tag.id %in% cant_use)
+# 
+# # no of tags per project - note the duplicate atlantic and spring migration is still in this data set so 
+# # need to manually remove the duplicates
+# 
+# no_ids_proj <- bd %>% 
+#   group_by(proj)%>%
+#   summarise(n_tags = length(unique(tag.id)))
+# 
+# 
+# bdd <- bd |> 
+#   dplyr::select(location.long, location.lat, gps.fix.type.raw, lotek.crc.status, sensor.type,
+#                 argos.lc,  tag.model, date_time, year, month, day, hour, minute, tag.id)
+# 
 
 
 # Types of data : GPS vs argos
@@ -366,25 +366,6 @@ p_alldat <- ggplot( bdd, aes(year, fill = sensor.type))+
 
 
 p_alldat 
-
-
-
-# tag model
-tag_model <- bdd %>%
-  dplyr::select(tag.id, tag.model) %>%
-  group_by(tag.id, tag.model)%>%
-  summarise(n = n())
-
-#tag_model
-
-p_model <- ggplot( tag_model, aes(tag.model)) +
-  geom_bar(position = "dodge") 
-
-
-
-
-
-
 
 
 #####################################################################################
