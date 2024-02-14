@@ -1,4 +1,4 @@
-library(sp)
+
 library(sf)
 library(ggplot2)
 library(stringr)
@@ -6,10 +6,9 @@ library(readxl)
 library(foreach)
 library(tidyverse)
 library(dplyr)
-library(geosphere)
-require(recurse)
-require(scales)
-library(adehabitatLT)
+#library(geosphere)
+#require(scales)
+#library(adehabitatLT)
 
 raw_dat <- file.path("output")
 out_dat <- file.path("output", "report")
@@ -55,7 +54,8 @@ man_out <- man_out |>
   dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw", 
                 "lotek.crc.status", "argos.lc","year", "month", "day" , "hour", "minute",                
                 "diff" , "location.long_prior","location.lat_prior","gcd_m",                  
-                "bearing" , "speed_mhr")            
+                "bearing" , "speed_mhr", stopover, breeding, direction, proj)
+                          
 
 
 
