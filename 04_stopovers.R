@@ -14,20 +14,18 @@ raw_dat <- file.path("output")
 out_dat <- file.path("output", "report")
 
 # read in the final data 
-
-all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv")) %>% 
-  mutate(tag.id = as.character(tag.id), 
-         date_time = ymd_hms(date_time))
-
+# 
+# all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv")) %>% 
+#   mutate(tag.id = as.character(tag.id), 
+#          date_time = ymd_hms(date_time))
+# 
+# unique(all$proj)
 # generate a direction subset to merge edited file 
-
-sub_dir <- all |> 
-  dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw", 
-                "lotek.crc.status", "argos.lc","year", "month", "day" , "hour", "minute",                
-                "diff" , "location.long_prior","location.lat_prior","gcd_m",                  
-                "bearing" , "speed_mhr")            
-
-
+# 
+# sub_dir <- all |> 
+#   dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw", 
+#                 "lotek.crc.status", "argos.lc",               
+#                 "diff" , "location.long_prior","location.lat_prior", proj)            
 
 
 # join the manual edits together and merge to the main dataset 
@@ -37,7 +35,6 @@ manual_edits <- list.files(file.path(raw_dat, "manual_edited_complete", "final")
 man1 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_dom_mig_20240123.gpkg"))
 man2 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_john_mig_20240123.gpkg"))%>% 
   mutate(proj = "johnson")
-
 man3 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_ma_mig_20240123.gpkg"))
 man4 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_mils_mig_20240123.gpkg"))
 man5 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_newstead_mig_20240123.gpkg"))
@@ -49,41 +46,67 @@ man9 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_eccc
   mutate(proj = "ECCC")
 man10 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_atlantic_20240207.gpkg" ))%>% 
   mutate(proj = "atlantic")
+man11 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_spring_USFW_20230214.gpkg" ))%>% 
+  mutate(proj = "spring")
 
-man_out <- bind_rows(man1, man2, man3, man4, man5, man6, man7, man8, man9, man10) %>% 
+#man_out <- bind_rows(man1, man2, man3, man4, man5, man6, man7, man8, man9, man10, man11) %>% 
+
+man_out <- man1 %>%
   cbind(st_coordinates(.))%>%
   rename(location.lat = Y, 
          location.long = X) %>%
   st_drop_geometry()
 
-man_out <- man_out |> 
-  dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw", 
-                "lotek.crc.status", "argos.lc", stopover, breeding, direction, proj)
 
-st <- left_join(sub_dir, man_out, join_by(tag.id, location.long, location.lat, date_time, gps.fix.type.raw,
-                                          lotek.crc.status, argos.lc))
 
 ## checks 
 #length(sub_dir$tag.id)
 #length(man_out$tag.id)
 #length(st$tag.id)
 
-stsf <- st_as_sf(st, coords = c("location.long", "location.lat"), crs = 4326)
-
-write_sf(stsf, file.path(raw_dat, "test_edited_compiled.gpkg"))
+# stsf <- st_as_sf(man_out, coords = c("location.long", "location.lat"), crs = 4326)
+# 
+# write_sf(stsf, file.path(raw_dat, "test_edited_compiled2.gpkg"))
+# 
+# unique(stsf$proj)
+# 
+# 
+# 
 
 
 
 ## calculate stop over locations and dates 
 
+# convert migration and stop-over to catergories 
+stops <- man_out |> 
+     mutate(stop_code = case_when(
+        stopover == "stop-over" ~ 0, 
+         stopover == "migration" ~ 1,
+         TRUE ~ NA))
+
+out <- stops %>%
+  group_by(tag.id) |> 
+  arrange(date_time) |> 
+ # mutate(movement = ifelse(stop_code != lead(stop_code), 1, 0)) %>% 
+  mutate(move_event = cumsum(stop_code != lag(stop_code) | row_number() == 1))
+         
+
+
+stop_summaries <- out %>%
+  group_by(tag.id, move_event ) %>%
+  summarise(start = min(date_time),
+            end = max(date_time),
+            move_type = unique(stopover),
+            breed_type = unique(breeding),
+            ave_lat = mean(location.lat),
+            ave_long = mean(location.long))
 
 
 
 
+stsf <- st_as_sf(stop_summaries, coords = c("ave_long", "ave_lat"), crs = 4326)
 
-
-
-
+write_sf(stsf, file.path(raw_dat, "test_stopsummary.gpkg"))
 
 
 
