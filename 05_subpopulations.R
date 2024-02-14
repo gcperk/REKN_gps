@@ -22,7 +22,6 @@ bdd <- bd |>
                 argos.lc,  tag.model, date_time, year, month, day, hour, minute, tag.id)
 
 
-
 bdd <- bdd %>% dplyr::select(location.long, location.lat, date_time, tag.id)
 
 
