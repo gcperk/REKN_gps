@@ -33,8 +33,8 @@ out_dat <- file.path("output", "report")
 manual_edits <- list.files(file.path(raw_dat, "manual_edited_complete", "final"))
 
 man1 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_dom_mig_20240123.gpkg"))
-man2 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_john_mig_20240123.gpkg"))%>% 
-  mutate(proj = "johnson")
+#man2 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_john_mig_20240123.gpkg"))%>% 
+#  mutate(proj = "johnson")
 man3 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_ma_mig_20240123.gpkg"))
 man4 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_mils_mig_20240123.gpkg"))
 man5 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_newstead_mig_20240123.gpkg"))
@@ -46,13 +46,15 @@ man9 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_eccc
   mutate(proj = "ECCC")
 man10 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_atlantic_20240207.gpkg" ))%>% 
   mutate(proj = "atlantic")
+
 man11 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_spring_USFW_20230214.gpkg" ))%>% 
-  mutate(proj = "spring")
+  mutate(proj = "spring", date_time = ddate)
 
-#man_out <- bind_rows(man1, man2, man3, man4, man5, man6, man7, man8, man9, man10, man11) %>% 
+#man_out <- bind_rows(man1, man3, man4, man5, man6, man7, man8, man9, man10, man11) 
 
-man_out <- man1 %>%
-  cbind(st_coordinates(.))%>%
+#man_out <- man_out %>%
+man_out <- man11 %>%
+    cbind(st_coordinates(.))%>%
   rename(location.lat = Y, 
          location.long = X) %>%
   st_drop_geometry()
@@ -85,14 +87,21 @@ stops <- man_out |>
          TRUE ~ NA))
 
 out <- stops %>%
+  #filter(tag.id == "201135") %>%
   group_by(tag.id) |> 
   arrange(date_time) |> 
  # mutate(movement = ifelse(stop_code != lead(stop_code), 1, 0)) %>% 
   mutate(move_event = cumsum(stop_code != lag(stop_code) | row_number() == 1))
          
 
+out <- out |> 
+  select( c("date_time", "location.long", "location.lat" , "stopover" ,
+            "breeding", "direction" ,"stop_code" ,"move_event" ))
+
+
 
 stop_summaries <- out %>%
+  #filter(tag.id == "201135") %>%
   group_by(tag.id, move_event ) %>%
   summarise(start = min(date_time),
             end = max(date_time),
@@ -101,17 +110,14 @@ stop_summaries <- out %>%
             ave_lat = mean(location.lat),
             ave_long = mean(location.long))
 
+stop_summaries <- stop_summaries %>% 
+  filter(!is.na(ave_long))
 
 
 
 stsf <- st_as_sf(stop_summaries, coords = c("ave_long", "ave_lat"), crs = 4326)
 
-write_sf(stsf, file.path(raw_dat, "test_stopsummary.gpkg"))
-
-
-
-
-
+write_sf(stsf, file.path(raw_dat, "test_stopsummary11.gpkg"))
 
 
 
@@ -208,102 +214,6 @@ global <- ggplot(data = Americas) +
 global
 
 
-
-
-
-##########################################################
-
-# Subpopulations
-
-###########################################################
-
-
-
-# Geographic distribution of all tracks with estimated groupings: 
-
-
-- South_america n(22)
-- Caribbean n(8)
-- usa (70)
-- west_arctic (37)
-- east arctic (26)
-- tdf (7)
-
-
-These are estimateed groupings based on potential analysis questions. 
-
-
-
-a <- sort(unique(clean$tag.local.identifier ))
-
-sth_am  <- c(204351, 204352, 204357, 204359,204364
-             ,204369 ,204370, 204371, 204375, 224073, 224075,224083, 224085,
-             224089, 224093, 224099, 233781, 233926  ,233928 ,236445,236450 ,236451)
-
-#length(sth_am)
-
-cari <- c(204361, 224080, 224082,224088 ,224097 ,233919,  236444, 236447)
-
-#length(cari)
-
-usa <- c(204362, 213839, 213842,221841 ,221843, 221844 ,221845, 221846 ,221847, 221850, 221852,
-         221854 ,221856, 221858, 221860 ,221863, 221866, 221867 ,224072,
-         224076 ,224077, 224078, 224079, 224081, 224086, 224087, 224091, 224092, 224094 ,224095, 224096, 224098, 224100, 224101, 224102,224103, 
-         230306 ,230319, 232980 ,233918, 233920, 233921, 233922, 233923 ,233924, 233925,
-         233929 ,233930, 233931 ,233932, 234177, 234178, 234179, 234180 ,234181, 234182, 234183 ,234184,
-         234185 ,234187, 234189 ,234190, 234191,
-         234235 ,236446, 236452, 238542, 238543, 240169, 242571)
-
-#length(usa)
-
-west_arctic <- c(213827, 213830,213834, 213836,213838, 213841, 230303, 230304,
-                 230310, 230311, 230314, 230317, 230318, 230320, 232982, 232985, 232986, 233927,
-                 234233, 234234, 234237,
-                 234239, 234240, 236453, 238546 ,240156, 240158, 240159 ,240167, 240168 ,240164, 241166 ,241167, 242573, 242574, 242577,230301)
-
-#length(west_arctic)
-
-east_arctic <- c(213828, 213829, 213831, 213832, 213833 ,213835, 213837, 213840, 230299, 230300, 230302,
-                 230307,230308 ,230309, 230312 ,230315 ,230316,
-                 232981,
-                 234236 , 234238 ,236448, 236449 ,238544 ,240161 ,242570 ,242580) 
-
-#length(east_arctic)
-
-tdf <- c(240155,  240157, 240160, 240162 ,240163, 240165 ,240166)
-
-#length(tdf) 
-
-# breeding local 
-
-breedsf <- rf_sf %>% 
-  mutate(breed_class = case_when(
-    tag.local.identifier %in%  tdf ~ "tdf",
-    tag.local.identifier %in%  west_arctic ~ "west_arctic",
-    tag.local.identifier %in% usa ~ "usa",
-    tag.local.identifier %in%  sth_am ~ "South_america",
-    tag.local.identifier %in%  east_arctic ~ "east_arctic",
-    tag.local.identifier %in%  cari ~ "caribbean",
-    .default = NA
-  ))
-
-
-# entire north America 
-breed_loc <- ggplot(data = Americas) +
-  geom_sf(color = "grey") +
-  geom_sf(data = breedsf, size = 1, colour = "dark blue") +
-  facet_wrap(~breed_class)+
-  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
-  xlab("Longitude") + ylab("Latitude") +
-  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
-  theme_bw()+
-  theme(axis.text.x=element_blank(),
-        axis.text.y=element_blank())
-
-breed_loc
-
-
-```
 
 
 
