@@ -15,7 +15,9 @@ out_dat <- file.path("output", "report")
 
 # read in the final data 
 
-all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv"))
+all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv")) %>% 
+  mutate(tag.id = as.character(tag.id), 
+         date_time = ymd_hms(date_time))
 
 # generate a direction subset to merge edited file 
 
@@ -28,34 +30,51 @@ sub_dir <- all |>
 
 
 
-
-
 # join the manual edits together and merge to the main dataset 
 
 manual_edits <- list.files(file.path(raw_dat, "manual_edited_complete", "final"))
 
 man1 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_dom_mig_20240123.gpkg"))
-man2 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_john_mig_20240123.gpkg"))
+man2 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_john_mig_20240123.gpkg"))%>% 
+  mutate(proj = "johnson")
+
 man3 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_ma_mig_20240123.gpkg"))
 man4 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_mils_mig_20240123.gpkg"))
 man5 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_newstead_mig_20240123.gpkg"))
 man6 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_oceanwinds_20240123.gpkg"))
-man7 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_20240128.gpkg" ))
+man7 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_20240128.gpkg" ))%>% 
+  mutate(proj = "mingan")
 man8 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_sthcarolina_20240113.gpkg" ))
-man9 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_eccc_20240207.gpkg" ))
-man10 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_atlantic_20240207.gpkg" ))
+man9 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_eccc_20240207.gpkg" )) %>% 
+  mutate(proj = "ECCC")
+man10 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_atlantic_20240207.gpkg" ))%>% 
+  mutate(proj = "atlantic")
 
 man_out <- bind_rows(man1, man2, man3, man4, man5, man6, man7, man8, man9, man10) %>% 
   cbind(st_coordinates(.))%>%
   rename(location.lat = Y, 
-         location.long = X)
+         location.long = X) %>%
+  st_drop_geometry()
 
 man_out <- man_out |> 
   dplyr::select(tag.id, location.long, location.lat, date_time,  "gps.fix.type.raw", 
-                "lotek.crc.status", "argos.lc","year", "month", "day" , "hour", "minute",                
-                "diff" , "location.long_prior","location.lat_prior","gcd_m",                  
-                "bearing" , "speed_mhr", stopover, breeding, direction, proj)
-                          
+                "lotek.crc.status", "argos.lc", stopover, breeding, direction, proj)
+
+st <- left_join(sub_dir, man_out, join_by(tag.id, location.long, location.lat, date_time, gps.fix.type.raw,
+                                          lotek.crc.status, argos.lc))
+
+## checks 
+#length(sub_dir$tag.id)
+#length(man_out$tag.id)
+#length(st$tag.id)
+
+stsf <- st_as_sf(st, coords = c("location.long", "location.lat"), crs = 4326)
+
+write_sf(stsf, file.path(raw_dat, "test_edited_compiled.gpkg"))
+
+
+
+## calculate stop over locations and dates 
 
 
 
@@ -68,7 +87,14 @@ man_out <- man_out |>
 
 
 
-#read in the raw data and match to the catergorised data sets
+
+
+
+
+
+
+
+
 
 
 
@@ -130,45 +156,6 @@ plot(martinvisit, martin, legendPos = c(13, -10))
 
 
 
-# subset with carolina data 
-
-bdd <- bdd %>% filter(proj == "sthcarolina_arctic") %>%
-  dplyr::select(-proj, -tag.model, -gps.fix.type.raw, -lotek.crc.status)
-
-# note keeping as many points as possible here 
-# can be filtered later on the values of A/B/3 etc..
-
-#ggplot(bdd, aes(argos.lc)) +
-#  geom_bar()#, position = position_stack(reverse = TRUE))
-
-
-
-# Duration between pings/ 
-bdd <- bdd |> 
-  mutate(ddate = ymd_hms(date_time)) |> 
-  arrange(tag.id, ddate)
-
-bdd_dur <- bdd  |> 
-  #mutate(time = as.POSIXct(date_time, format = "%y/%d/%m %H:%M:%S")) |> 
-  group_by(tag.id) |> 
-  mutate(diff = difftime(ddate, lag(ddate),  units = c("mins")), 
-         diff = as.numeric(diff))%>%
-  mutate(diff >0)
-
-
-type_dur <- bdd_dur |> 
-  dplyr::select(tag.id, argos.lc, diff) |> 
-  group_by(argos.lc, tag.id) |> 
-  summarise( n =  n(), 
-             min = min(diff, na.rm= T),
-             max =max(diff, na.rm = T), 
-             mean = mean(diff, na.rm = T))
-
-
-
-
-
-
 
 
 
@@ -196,6 +183,17 @@ global <- ggplot(data = Americas) +
         axis.text.y=element_blank())
 
 global
+
+
+
+
+
+##########################################################
+
+# Subpopulations
+
+###########################################################
+
 
 
 # Geographic distribution of all tracks with estimated groupings: 
