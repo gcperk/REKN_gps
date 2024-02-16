@@ -6,6 +6,7 @@ library(readxl)
 library(foreach)
 library(tidyverse)
 library(dplyr)
+library(lubridate)
 #library(geosphere)
 #require(scales)
 #library(adehabitatLT)
@@ -39,8 +40,18 @@ man3 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_ma_m
 man4 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_mils_mig_20240123.gpkg"))
 man5 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_newstead_mig_20240123.gpkg"))
 man6 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_oceanwinds_20240123.gpkg"))
-man7 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_20240128.gpkg" ))%>% 
+man7 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_20240128_2.gpkg" ))%>% 
   mutate(proj = "mingan")
+# 
+# head(man7)
+# 
+# man7 <- man7 |> 
+#   dplyr::select(id, tag.id, animal.id, date_time,minute, hour, day, month, year,  gcd_m,speed_mhr, bearing, diff, stopover,breeding,  direction, geom)
+#              
+# st_write(man7, file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_20240128_2.gpkg"))
+
+
+
 man8 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_sthcarolina_20240113.gpkg" ))
 man9 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_eccc_20240207.gpkg" )) %>% 
   mutate(proj = "ECCC")
@@ -50,10 +61,10 @@ man10 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_atl
 man11 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_spring_USFW_20230214.gpkg" ))%>% 
   mutate(proj = "spring", date_time = ddate)
 
-#man_out <- bind_rows(man1, man3, man4, man5, man6, man7, man8, man9, man10, man11) 
+man_out <- bind_rows(man1, man3, man4, man5, man6, man7, man8, man9, man10, man11) 
 
-#man_out <- man_out %>%
-man_out <- man11 %>%
+man_out <- man_out %>%
+#man_out <- man11 %>%
     cbind(st_coordinates(.))%>%
   rename(location.lat = Y, 
          location.long = X) %>%
@@ -95,7 +106,7 @@ out <- stops %>%
          
 
 out <- out |> 
-  select( c("date_time", "location.long", "location.lat" , "stopover" ,
+  select( c(`tag.id`,"date_time", "location.long", "location.lat" , "stopover" ,
             "breeding", "direction" ,"stop_code" ,"move_event" ))
 
 
@@ -114,10 +125,29 @@ stop_summaries <- stop_summaries %>%
   filter(!is.na(ave_long))
 
 
-
 stsf <- st_as_sf(stop_summaries, coords = c("ave_long", "ave_lat"), crs = 4326)
 
-write_sf(stsf, file.path(raw_dat, "test_stopsummary11.gpkg"))
+write_sf(stsf, file.path(raw_dat, "stopover_summaries2.gpkg"))
+
+
+
+# Edits and calculations 
+
+sts <- st_read(file.path(raw_dat, "stopover_summaries2.gpkg")) %>%
+  dplyr::mutate(stop_dur = round(difftime( end, start,  units = c("days")),1)) %>% 
+  filter(move_type == "stop-over")
+
+
+hist(as.numeric(sts$stop_dur), breaks = 100)
+
+
+
+man_out <- man_out %>%
+  #man_out <- man11 %>%
+  cbind(st_coordinates(.))%>%
+  rename(location.lat = Y, 
+         location.long = X) %>%
+  st_drop_geometry()
 
 
 
