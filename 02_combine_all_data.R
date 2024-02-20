@@ -37,7 +37,7 @@ unique(all$algorithm.marked.outlier)
 unique(all$visible)
 unique(all$import.marked.outlier)
 
-
+unique(all$study.site)
 # write out: 
 #write.csv(all, file.path("output", "xall_rekn_20240203.csv"), row.names = F)
 ##clean_sf <- st_as_sf(all, coords = c("location.long", "location.lat"), crs = st_crs(4326))
@@ -87,7 +87,7 @@ bdd_det <- bdd_det |>
 
 
 # write out: 
-write.csv(bdd_det, file.path("output", "xall_rekn_20240207.csv"), row.names = F)
+#write.csv(bdd_det, file.path("output", "xall_rekn_20240207.csv"), row.names = F)
 clean_sf <- st_as_sf(all, coords = c("location.long", "location.lat"), crs = st_crs(4326))
 st_write(clean_sf, file.path("output", "xall_rekn_20240207.gpkg"), append = F)
 
