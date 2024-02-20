@@ -216,6 +216,12 @@ all_dat <- all_dat %>%
   mutate(study.site = study.site1) %>%
   dplyr::select(-study.site1)
 
+# all_dat <- all_dat |> 
+#   mutate(study.site = case_when(
+#     study.site == "Norb"~ "NORBURYC", 
+#     TRUE ~ as.character(study.site))
+
+
 
 spring_tag_data <- all_dat %>% 
   filter(tag.id %in% spring_tags)
