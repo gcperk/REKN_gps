@@ -50,8 +50,6 @@ man7 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_2
 #              
 # st_write(man7, file.path(raw_dat, "manual_edited_complete", "final", "rekn_qu_20240128_2.gpkg"))
 
-
-
 man8 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_sthcarolina_20240113.gpkg" ))
 man9 <- st_read(file.path(raw_dat, "manual_edited_complete", "final", "rekn_eccc_20240207.gpkg" )) %>% 
   mutate(proj = "ECCC")
@@ -118,6 +116,7 @@ stop_summaries <- out %>%
             end = max(date_time),
             move_type = unique(stopover),
             breed_type = unique(breeding),
+            direction = unique(direction)[1],
             ave_lat = mean(location.lat),
             ave_long = mean(location.long))
 
@@ -127,31 +126,33 @@ stop_summaries <- stop_summaries %>%
 
 stsf <- st_as_sf(stop_summaries, coords = c("ave_long", "ave_lat"), crs = 4326)
 
-write_sf(stsf, file.path(raw_dat, "stopover_summaries2.gpkg"))
+write_sf(stsf, file.path(raw_dat, "stopover_summaries3.gpkg"))
+#write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
+
+
+
+
+
+
+## Note this file has been manually edited for stop-over locations 
 
 
 
 # Edits and calculations 
 
-sts <- st_read(file.path(raw_dat, "stopover_summaries2.gpkg")) %>%
-  dplyr::mutate(stop_dur = round(difftime( end, start,  units = c("days")),1)) %>% 
-  filter(move_type == "stop-over")
-
+sts <- st_read(file.path(out_dat, "stopover_locations.gpkg")) %>%
+  dplyr::mutate(stop_dur = round(difftime( end, start,  units = c("days")),1)) #%>% 
+ # filter(move_type == "stop-over")
 
 hist(as.numeric(sts$stop_dur), breaks = 100)
 
-
-
-man_out <- man_out %>%
-  #man_out <- man11 %>%
-  cbind(st_coordinates(.))%>%
-  rename(location.lat = Y, 
-         location.long = X) %>%
-  st_drop_geometry()
-
-
-
-
+# 
+# man_out <- man_out %>%
+#   #man_out <- man11 %>%
+#   cbind(st_coordinates(.))%>%
+#   rename(location.lat = Y, 
+#          location.long = X) %>%
+#   st_drop_geometry()
 
 
 
@@ -161,34 +162,86 @@ man_out <- man_out %>%
 ######################################################################
 ## Filter tags which cant be used 
 
-bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv"))
+bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv")) %>%
+    mutate(tag.id = as.character(tag.id))
 
-# filter the tags which cant be used 
-cant_use <- bcat |> 
-  filter(Catergory == "Not usable") %>%
-  dplyr::select(tag.id) %>%
-  pull()
+head(sts)
 
-bd <- bdat %>% 
-  filter(!tag.id %in% cant_use)
+so <- left_join(sts, bcat, by = "tag.id")
 
-bdd <- bd |> 
-  dplyr::select(location.long, location.lat, gps.fix.type.raw, lotek.crc.status,proj,
-                argos.lc,  tag.model, date_time, year, month, day, hour, minute, tag.id)
+#length(sts$tag.id)
+#length(so$tag.id)
 
 
+### Write out for review 
 
-bdd <- bdd %>% dplyr::select(location.long, location.lat, date_time, tag.id)
+
+write_sf(so, file.path(raw_dat, "stopover_summaries_testing.gpkg"))
+#write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
 
 
-plot(bdd$location.long, bdd$location.lat, col = viridis_pal()(nrow(bdd)), pch = 20, 
-     xlab = "x", ylab = "y", asp = 1)
 
-bddvisit = getRecursions(bdd, 25) 
 
-par(mfrow = c(1, 2), mar = c(4, 4, 1, 1))
-plot(bddvisit, bdd, legendPos = c(13, -10))
 
+
+# western pacific population 
+
+
+
+wgwp <- so %>% 
+  filter(Subpopulations == "WGWP")
+
+length(unique(wgwp$tag.id))
+
+move_type <- wgwp |> 
+  st_drop_geometry() |> 
+  select(tag.id, Catergory) |> 
+  group_by(Catergory) |> 
+  summarise(count = length(unique(tag.id)))
+
+# date depart for spring migration 
+Texax
+2021 May 21 - 201137
+2021 May 18 - 201135
+2020 May 15 - 201139 - returned 2020 July 19 
+2021 May 19 - 201140
+
+New Orleans
+2021 May 31 - 201143 - via Hudson Bay 
+2021 May 30 - 201145 - via Hudson Bay 
+2021 May 20 - 201146 - via Hudson Bay - return 08 28th
+2021 May 26 - 201150
+
+
+# date departing breeding area 
+201146 - via Hudson Bay depart august 21
+201143 - via Hudson Bay Sept 9th (might be dislodged tag as last ping)
+
+
+
+# # filter the tags which cant be used 
+# cant_use <- bcat |> 
+#   filter(Catergory == "Not usable") %>%
+#   dplyr::select(tag.id) %>%
+#   pull()
+# 
+# bd <- bdat %>% 
+#   filter(!tag.id %in% cant_use)
+# 
+# bdd <- bd |> 
+#   dplyr::select(location.long, location.lat, gps.fix.type.raw, lotek.crc.status,proj,
+#                 argos.lc,  tag.model, date_time, year, month, day, hour, minute, tag.id)
+# 
+# bdd <- bdd %>% dplyr::select(location.long, location.lat, date_time, tag.id)
+# 
+# plot(bdd$location.long, bdd$location.lat, col = viridis_pal()(nrow(bdd)), pch = 20, 
+#      xlab = "x", ylab = "y", asp = 1)
+# 
+# bddvisit = getRecursions(bdd, 25) 
+# 
+# par(mfrow = c(1, 2), mar = c(4, 4, 1, 1))
+# plot(bddvisit, bdd, legendPos = c(13, -10))
+# 
 
 
 
