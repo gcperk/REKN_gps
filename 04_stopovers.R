@@ -199,24 +199,35 @@ move_type <- wgwp |>
   group_by(Catergory) |> 
   summarise(count = length(unique(tag.id)))
 
-# date depart for spring migration 
-Texax
-2021 May 21 - 201137
-2021 May 18 - 201135
-2020 May 15 - 201139 - returned 2020 July 19 
-2021 May 19 - 201140
-
-New Orleans
-2021 May 31 - 201143 - via Hudson Bay 
-2021 May 30 - 201145 - via Hudson Bay 
-2021 May 20 - 201146 - via Hudson Bay - return 08 28th
-2021 May 26 - 201150
-
-
-# date departing breeding area 
-201146 - via Hudson Bay depart august 21
-201143 - via Hudson Bay Sept 9th (might be dislodged tag as last ping)
-
+# # date depart for spring migration 
+# Texax
+# 2021 May 18 - 201135 - via Prairies + hudson Bay 
+# 2020 May 15 - 201139 - via Prairies returned 2020 July 19 
+# 2023 May 24 - 228166 - via Prairies - returned august 9th
+# 
+# New Orleans
+# 2021 May 18 - 201151 - via prairies
+# 2021 May 19 - 201140 - via prairies
+# 2021 May 21 - 201137 - short
+# 
+# 2021 May 20 - 201146 - via Hudson Bay - return 08 28th
+# 2021 May 26 - 201150 - via Hudson Bay 
+# 2021 May 28 - 201160 - via Hudson Bay 
+# 2021 May 30 - 201159 - via Hudson Bay 
+# 2021 May 30 - 201163 - via Hudson Bay 
+# 2021 May 31 - 201143 - via Hudson Bay 
+# 2021 May 30 - 201145 - via Hudson Bay 
+# 2021 June 05 - 201165 - via Hudson Bay 
+# 
+# 
+# 
+# # date departing breeding area 
+# 201146 - via Hudson Bay depart august 11th
+# 228166 - via hudson Bay July 19th (return via hudson bay - arrive via prairies) 
+# 201139 - via Prairies returned 2020 July 19 
+# 
+# 201143 - via Hudson Bay Sept 6th (might be dislodged tag as last ping)
+# 201165 - via hudson bay Sept 10th (might be dislodged tag as last ping)
 
 
 # # filter the tags which cant be used 
