@@ -182,11 +182,9 @@ write_sf(so, file.path(raw_dat, "stopover_summaries_testing.gpkg"))
 
 
 
-
-
+#############################################################
 # western pacific population 
-
-
+#############################################################
 
 wgwp <- so %>% 
   filter(Subpopulations == "WGWP")
@@ -253,6 +251,65 @@ move_type <- wgwp |>
 # par(mfrow = c(1, 2), mar = c(4, 4, 1, 1))
 # plot(bddvisit, bdd, legendPos = c(13, -10))
 # 
+
+
+
+#############################################################
+# tdf
+#############################################################
+
+
+tdf <- so %>% 
+  filter(Subpopulations == "TDF")
+
+length(unique(tdf$tag.id))
+
+move_type <- tdf |> 
+  st_drop_geometry() |> 
+  select(tag.id, Catergory) |> 
+  group_by(Catergory) |> 
+  summarise(count = length(unique(tag.id)))
+
+
+
+# fall migration - depart date 
+240167 - depart Lago de Piexe - April 10 th and depart sth sth Am may 29th 2023
+240158 - depart Lago de Piexe/ sth sth Am - April 13th 
+240159 - depart Lago de Piexe/ sth sth Am - May 8th 2023
+240166 - depart Lago de Piexe/ sth sth Am - May 8th 2023
+241166 - depart Lago de Piexe/ sth sth Am - May 1st 2023
+240164 - depart Lago de Piexe - April 11 th and depart sth sth Am April 27th 2023
+241167 - depart Lago de Piexe - April 26 th and depart sth sth Am may 5th 2023
+
+#Depart Nth Brazil 
+240158 - depart Marahao - may 15th 
+240159 - depart Marahao - may 24th
+241166 - depart Marahao - may 27th
+240164 - depart Marahao = may 27th 
+241167 - depart New Amsterdam - May 25th
+240165 - depart New Amsterdam = may 27th 
+241167 - depart Amapa - May 30th 
+
+#Depart US mainland 
+
+213835 - Depart del Bay - june 1 (2021) - tagged in delbay (unknown arrival)
+213841 - Depart del Bay - june 1 (2021) - tagged in delbay (unknown arrival)
+232982 - Depart del Bay - May 30th (2023) - tagged in delbay (unknown arrival)
+240156  - depart del Bay May 29 2023 - tagged in delbay (unknown arrival)
+240159  - depart del Bay May 31 2023) (arrive 29th 5th) 
+240158  - depart sthport (nth carolina)  june 7th 2023 (arrive 20th May) 
+240161  - depart del bay - May 29 2023 - tagged in delbay (unknown arrival)
+240164  - depart del bay - June 20th 2023 - multiple stops on mainland(arrive 2nd june)
+240165  - depart del bay - June 15th 2023 - multiple stops on mainland (arrive 6th june)
+240167  - depart del bay - June 11th 2023 - arrive june 4th
+240166  - depart del bay - June 11th 2023 - arrive june 1st
+240167  - depart del bay - June 8th 2023 - arrive May 27th 
+
+
+# arrival wintering ground 
+
+240167 - arrive October 8th - stayed to at least Dec 19th (tag ran out) - Reserva natural bahia San Blas (
+
 
 
 
