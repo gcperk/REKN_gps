@@ -120,13 +120,13 @@ Americas <- world %>% dplyr::filter(continent == "North America")
 # entire north America 
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
-  geom_point(data = acc_out, aes(x = X, y = Y, colour = Subpopulations), size = 3) +#colour = "dark blue") +
-  scale_fill_viridis_d(option = "magma",begin = 0.1)+
+  geom_point(data = acc_out, aes(x = X, y = Y, colour = Subpopulations), size = 4) +#colour = "dark blue") +
+  scale_color_viridis_d() + 
   #facet_wrap(~tag.id)+
   # geom_point(ru, aes(x = lng, y = lat), size = 4) +
  # xlab("Longitude") + ylab("Latitude") +
   #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
-  coord_sf(xlim = c(-130, -60), ylim = c(50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-125, -60), ylim = c(55, 79), expand = FALSE)+
   theme_bw()+
   labs(colour = "Subpopulation") + 
   theme(
