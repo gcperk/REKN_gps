@@ -67,8 +67,9 @@ breeding_sum <- so |>
 
 
 solo_breed <- so %>% filter(movement_dir == "breeding") %>%
-     select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations)
-
+     select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, type)|> 
+  filter(type %in% c( "partial spring/breeding"  ,"partial spring/breeding/partial fall" ,"spring migration/breeding/fall migration/partial wintering",
+                      "partial spring/breeding/partial fall " )) #  
 
 solo_breed<- cbind(st_coordinates(solo_breed),solo_breed)
 
@@ -84,7 +85,7 @@ sb <- sb |>
   filter(Subpopulations %in% c( "WGWP" ,  "nth_sthAm" , "SE",  "TDF")) #         "nth_sthAm_TDF" "SE_nth_sthAm"))
   
   
-tags <- as.factor(unique(sb$tag.id))
+tags <- as.factor(unique(sb$tag.id)) %>% droplevels()
 
 acc_out <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
   
@@ -103,7 +104,9 @@ acc_out <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
 }
   
   
-
+acc_out <- acc_out |> 
+  mutate(date_label = parse_date_time(x = paste(2021,doy), orders = "yj")) %>%
+  mutate(date_label = ymd(date_label))
 
 
 ## Plots 
@@ -117,7 +120,7 @@ Americas <- world %>% dplyr::filter(continent == "North America")
 # entire north America 
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
-  geom_point(data = acc_out, aes(x = X, y = Y, colour = Subpopulations)) +#colour = "dark blue") +
+  geom_point(data = acc_out, aes(x = X, y = Y, colour = Subpopulations), size = 3) +#colour = "dark blue") +
   scale_fill_viridis_d(option = "magma",begin = 0.1)+
   #facet_wrap(~tag.id)+
   # geom_point(ru, aes(x = lng, y = lat), size = 4) +
@@ -155,8 +158,66 @@ global
 
 
 p_animate <- global + 
-  transition_reveal(along = doy) + 
+  transition_time(date_label) + 
+  labs(title = "Date: {round(frame_time)}") +
+  enter_fade() + #enter_drift(x_mod = -1) + 
+  exit_shrink()
+
+# p_animate <- global + 
+#   transition_reveal(along = doy) + 
+#   labs(title = "Day of Year: {round(frame_along)}")
+
+animate(
+  p_animate, 
+  width = 10, 
+  height = 8, 
+  units = "in", 
+  res = 72, 
+  #fps = 10, #10 default  
+  nframes = 150
+)
+
+
+
+###############################################################
+ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, colour = country)) +
+  geom_point(alpha = 0.7, show.legend = FALSE) +
+  scale_colour_manual(values = country_colors) +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  facet_wrap(~continent) +
+  # Here comes the gganimate specific bits
+  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
+  transition_time(year) +
+  ease_aes('linear')
+
+
+
+
+
+
+p <- ggplot(acc_out) +
+  geom_point(aes(x = X, y = Y, colour = Subpopulations)) +
+ # geom_path(aes(x = X, y = Y, colour = Subpopulations)) +
+  #facet_grid(~tag.id) +
+  scale_color_viridis_d() +
+  coord_sf() +
+  labs(colour = "Day of Year") +
+  theme_bw() +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")) 
+
+p_animate <- p + 
+  transition_time(day) + 
   labs(title = "Day of Year: {round(frame_along)}")
+
+# p_animate <- global + 
+#   transition_reveal(along = doy) + 
+#   labs(title = "Day of Year: {round(frame_along)}")
 
 animate(
   p_animate, 
@@ -167,6 +228,14 @@ animate(
   fps = 10, 
   nframes = 300
 )
+
+
+
+###################################################
+
+
+
+
 
 
 
