@@ -1,0 +1,267 @@
+---
+title: "Rufa Red Knot subpopulation migration and wintering habitats"
+author: "Ninox Consulting Ltd"
+date: "2024"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Background
+
+The following graphics provide interactive maps of stop over locations for Red Knot rufa subpopulation. These graphics are part of a more detailed report (**Using geolocator tracking data to advance understanding of Red Knot migration habits**). 
+
+
+
+
+
+
+Light-sensitive geolocator data was used to track the distribution of 93 Red Knot individuals. Individuals were reviewed and categorized into subpopulations following discussion with experts and draft recovery plan mapping.
+
+Individuals were assigned under the following categories: 
+
+* Southeast US/Caribbean (SE_US): 31 birds
+
+- Northern South America (N_SA): 22 birds
+
+- Western Gulf, Western Pacific central/South America (WGWP_SA): 24 birds
+
+- Tierra del Fuego (TDF): 9 birds
+
+- Uncertain: 7 birds
+
+
+### Map description
+
+For each of the maps below, each point represents an estimated winter stop over location (~ 250km radius) with colors corresponding to arrival month (1 - 12 representing January to December). 
+Point size is relative to length of stay at each location, with larger circles representing longer stays. Note grey lines link successive locations by date and represent straight line distance for orientation only.
+
+
+```{r library, echo = FALSE, message = FALSE, warnings = FALSE}
+library(leaflet)
+library(RColorBrewer)
+library(lubridate)
+library(sp)
+library(sf)
+library(adehabitatHR)
+library(ggplot2)
+library(stringr)
+library(readxl)
+library(foreach)
+library(tidyverse)
+library(viridis)
+library(dplyr)
+library(mapview)
+library("rnaturalearth")
+library("rnaturalearthdata")
+#library(spData)
+#library(spDataLarge)
+library(tmap)    # for static and interactive maps
+
+#install.packages("gganimate")
+library(gganimate)
+library(ggspatial)
+
+raw_dat <- file.path("output")
+out_dat <- file.path("output", "report")
+
+
+```
+
+```{r import data, message = FALSE, echo = FALSE}
+
+rekn <- readRDS(file.path(out_dat, "REKN_stopovers_final.rds"))
+
+
+########################################################################
+# leafleTT maps
+
+# sub population Duration figures 
+
+#rekn <- read.csv(file.path(out.dir, "rekn_rufa_subpop.csv"))
+
+rekn <- rekn %>% 
+  filter(!type %in% c("static", "Not usable")) |>
+  mutate(Subpop_class = case_when(
+    Subpopulations %in% c("SE_nth_sthAm_TDF", "unsure" ,"Not usable" , "NA" ,NA,"unsure(se?)", "SE_nth_sthAm" ) ~ "unknown", 
+    .default = as.character(Subpopulations))) |> 
+  mutate(arr_month = month(start))
+
+rekn<- cbind(st_coordinates(rekn),rekn)
+
+
+
+sp <- unique(rekn$Subpop_class)
+
+```
+
+## 1. Southeast US/Caribbean (SE_US)
+
+```{r import data0, message = FALSE, echo = FALSE}
+
+spp <- sp[4]
+
+bdat_sp <- rekn %>% 
+  filter(Subpop_class == spp)
+
+#month_col = sort(unique(bdat_sp$arr_month))
+palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
+
+pal <- colorFactor(
+  palette = "viridis",
+  domain = unique(bdat_sp$tag.id))
+
+tags <- unique(bdat_sp$tag.id)
+
+birdmapall <- leaflet(bdat_sp) %>%
+  # add a dark basemap
+  #addProviderTiles("CartoDB.DarkMatter") %>%
+  addProviderTiles("CartoDB") %>%
+  addCircleMarkers(lng = bdat_sp$X, lat = bdat_sp$Y,
+                   weight = 3, 
+                   color = ~palette1(bdat_sp$arr_month), 
+                   fill = TRUE,
+                   label = ~arr_month,
+                   radius = ~dur_days/10,
+                   fillColor = ~palette1(bdat_sp$arr_month)) %>%
+  #popup = ~animal.id) %>%
+  addPolylines(data = bdat_sp, lng =  bdat_sp$X, lat = bdat_sp$Y, 
+               color = "grey",  opacity = 0.1, stroke = TRUE) %>%
+  addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
+            title = "Arrival Month",
+            opacity = 1)
+
+birdmapall
+
+```
+
+_Figure 1: Distribution of Red Knot rufa Eoutheast US and Caribbean subpopulation (n = 31) from 2009 - 2018. Points represent estimated locations, with colors corresponding to arrival month. Point size is relative to length of stay at each location, with larger circles representing longer stays. Note grey lines link successive locations by date and represent straight line distance for orientation only._
+
+
+
+## 2. Northern South America (N_SA)
+
+```{r import data2, message = FALSE, echo = FALSE}
+
+spp <- sp[2]
+
+bdat_sp <- rekn %>% 
+  filter(Subpop1 == spp)
+
+#month_col = sort(unique(bdat_sp$arr_month))
+palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
+
+pal <- colorFactor(
+  palette = "viridis",
+  domain = unique(bdat_sp$animal.id))
+
+tags <- unique(bdat_sp$animal.id)
+
+birdmapall <- leaflet(bdat_sp) %>%
+  # add a dark basemap
+  #addProviderTiles("CartoDB.DarkMatter") %>%
+  addProviderTiles("CartoDB") %>%
+  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
+                   weight = 3, color = ~palette1(bdat_sp$arr_month), 
+                   fill = TRUE,
+                   label = ~arr_month,
+                   radius = ~dur_no/10,
+                   fillColor = ~palette1(bdat_sp$arr_month)) %>%
+  #popup = ~animal.id) %>%
+  addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+               color = "grey",  opacity = 0.1, stroke = TRUE) %>%
+  addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
+            title = "Arrival Month",
+            opacity = 1)
+
+birdmapall
+
+```
+
+_Figure 2: Distribution of Red Knot rufa Northern South American subpopulation (n = 22) from 2009 - 2018. Points represent estimated locations, with colors corresponding to arrival month. Point size is relative to length of stay at each location, with larger circles representing longer stays. Note grey lines link successive locations by date and represent straight line distance for orientation._
+
+
+## 3. Western Gulf, Pacific central/South America (WGWP_SA) 
+
+```{r import data3, message = FALSE, echo = FALSE}
+
+spp <- sp[3]
+
+bdat_sp <- rekn %>% 
+  filter(Subpop1 == spp)
+
+#month_col = sort(unique(bdat_sp$arr_month))
+palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
+
+pal <- colorFactor(
+  palette = "viridis",
+  domain = unique(bdat_sp$animal.id))
+
+tags <- unique(bdat_sp$animal.id)
+
+birdmapall <- leaflet(bdat_sp) %>%
+  # add a dark basemap
+  #addProviderTiles("CartoDB.DarkMatter") %>%
+  addProviderTiles("CartoDB") %>%
+  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
+                   weight = 3, color = ~palette1(bdat_sp$arr_month), 
+                   fill = TRUE,
+                   label = ~arr_month,
+                   radius = ~dur_no/10,
+                   fillColor = ~palette1(bdat_sp$arr_month)) %>%
+  #popup = ~animal.id) %>%
+  addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+               color = "grey",  opacity = 0.1, stroke = TRUE) %>%
+  addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
+            title = "Arrival Month",
+            opacity = 1)
+
+birdmapall
+
+```
+
+_Figure 3: Distribution of Red Knot rufa Western Gulf subpopulation (n = 24) from 2009 - 2018. Points represent estimated locations, with colors corresponding to arrival month. Point size is relative to length of stay at each location, with larger circles representing longer stays. Note grey lines link successive locations by date and represent straight line distance for orientation only._
+
+
+## 4) Tierra Del Fuego (TDF)
+
+```{r import data4, message = FALSE, echo = FALSE}
+
+spp <- sp[4]
+
+bdat_sp <- rekn %>% 
+  filter(Subpop1 == spp)
+
+#month_col = sort(unique(bdat_sp$arr_month))
+palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
+
+pal <- colorFactor(
+  palette = "viridis",
+  domain = unique(bdat_sp$animal.id))
+
+tags <- unique(bdat_sp$animal.id)
+
+birdmapall <- leaflet(bdat_sp) %>%
+  # add a dark basemap
+  #addProviderTiles("CartoDB.DarkMatter") %>%
+  addProviderTiles("CartoDB") %>%
+  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
+                   weight = 3, color = ~palette1(bdat_sp$arr_month), 
+                   fill = TRUE,
+                   label = ~arr_month,
+                   radius = ~dur_no/10,
+                   fillColor = ~palette1(bdat_sp$arr_month)) %>%
+  #popup = ~animal.id) %>%
+  addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+               color = "grey",  opacity = 0.1, stroke = TRUE) %>%
+  addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
+            title = "Arrival Month",
+            opacity = 1)
+
+birdmapall
+
+```
+
+_Figure 4: Distribution of Red Knot rufa Tierra del Fuego subpopulation (n = 9) from 2009 - 2018. Points represent estimated locations, with colors corresponding to arrival month. Point size is relative to length of stay at each location, with larger circles representing longer stays. Note grey lines link successive locations by date and represent straight line distance for orientation only._
