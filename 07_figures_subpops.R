@@ -83,8 +83,8 @@ Americas <- world %>% dplyr::filter(region_un == "Americas")
 # entire north America 
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
-  geom_sf(data = rf_sf, size = 1, colour = "dark blue") +
-  #facet_wrap(~tag.local.identifier)+
+  geom_sf(data = rf_sf, size = 2, colour = "dark blue") +
+  facet_wrap(~movement_dir)+
   # geom_point(ru, aes(x = lng, y = lat), size = 4) +
   xlab("Longitude") + ylab("Latitude") +
   coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
