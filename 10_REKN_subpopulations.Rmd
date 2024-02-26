@@ -145,32 +145,33 @@ _Figure 1: Distribution of Red Knot rufa Eoutheast US and Caribbean subpopulatio
 
 ```{r import data2, message = FALSE, echo = FALSE}
 
-spp <- sp[2]
+spp <- sp[5]
 
 bdat_sp <- rekn %>% 
-  filter(Subpop1 == spp)
+  filter(Subpop_class == spp)
 
 #month_col = sort(unique(bdat_sp$arr_month))
 palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
 
 pal <- colorFactor(
   palette = "viridis",
-  domain = unique(bdat_sp$animal.id))
+  domain = unique(bdat_sp$tag.id))
 
-tags <- unique(bdat_sp$animal.id)
+tags <- unique(bdat_sp$tag.id)
 
 birdmapall <- leaflet(bdat_sp) %>%
   # add a dark basemap
   #addProviderTiles("CartoDB.DarkMatter") %>%
   addProviderTiles("CartoDB") %>%
-  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
-                   weight = 3, color = ~palette1(bdat_sp$arr_month), 
+  addCircleMarkers(lng = bdat_sp$X, lat = bdat_sp$Y,
+                   weight = 3, 
+                   color = ~palette1(bdat_sp$arr_month), 
                    fill = TRUE,
                    label = ~arr_month,
-                   radius = ~dur_no/10,
+                   radius = ~dur_days/10,
                    fillColor = ~palette1(bdat_sp$arr_month)) %>%
   #popup = ~animal.id) %>%
-  addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+  addPolylines(data = bdat_sp, lng =  bdat_sp$X, lat = bdat_sp$Y, 
                color = "grey",  opacity = 0.1, stroke = TRUE) %>%
   addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
             title = "Arrival Month",
@@ -187,74 +188,76 @@ _Figure 2: Distribution of Red Knot rufa Northern South American subpopulation (
 
 ```{r import data3, message = FALSE, echo = FALSE}
 
-spp <- sp[3]
+spp <- sp[1]
 
 bdat_sp <- rekn %>% 
-  filter(Subpop1 == spp)
+  filter(Subpop_class == spp)
 
 #month_col = sort(unique(bdat_sp$arr_month))
 palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
 
 pal <- colorFactor(
   palette = "viridis",
-  domain = unique(bdat_sp$animal.id))
+  domain = unique(bdat_sp$tag.id))
 
-tags <- unique(bdat_sp$animal.id)
+tags <- unique(bdat_sp$tag.id)
 
 birdmapall <- leaflet(bdat_sp) %>%
   # add a dark basemap
   #addProviderTiles("CartoDB.DarkMatter") %>%
   addProviderTiles("CartoDB") %>%
-  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
-                   weight = 3, color = ~palette1(bdat_sp$arr_month), 
+  addCircleMarkers(lng = bdat_sp$X, lat = bdat_sp$Y,
+                   weight = 3, 
+                   color = ~palette1(bdat_sp$arr_month), 
                    fill = TRUE,
                    label = ~arr_month,
-                   radius = ~dur_no/10,
+                   radius = ~dur_days/10,
                    fillColor = ~palette1(bdat_sp$arr_month)) %>%
   #popup = ~animal.id) %>%
-  addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+  addPolylines(data = bdat_sp, lng =  bdat_sp$X, lat = bdat_sp$Y, 
                color = "grey",  opacity = 0.1, stroke = TRUE) %>%
   addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
             title = "Arrival Month",
             opacity = 1)
 
 birdmapall
-
 ```
 
 _Figure 3: Distribution of Red Knot rufa Western Gulf subpopulation (n = 24) from 2009 - 2018. Points represent estimated locations, with colors corresponding to arrival month. Point size is relative to length of stay at each location, with larger circles representing longer stays. Note grey lines link successive locations by date and represent straight line distance for orientation only._
+
 
 
 ## 4) Tierra Del Fuego (TDF)
 
 ```{r import data4, message = FALSE, echo = FALSE}
 
-spp <- sp[4]
+spp <- sp[6]
 
 bdat_sp <- rekn %>% 
-  filter(Subpop1 == spp)
+  filter(Subpop_class == spp)
 
 #month_col = sort(unique(bdat_sp$arr_month))
 palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
 
 pal <- colorFactor(
   palette = "viridis",
-  domain = unique(bdat_sp$animal.id))
+  domain = unique(bdat_sp$tag.id))
 
-tags <- unique(bdat_sp$animal.id)
+tags <- unique(bdat_sp$tag.id)
 
 birdmapall <- leaflet(bdat_sp) %>%
   # add a dark basemap
   #addProviderTiles("CartoDB.DarkMatter") %>%
   addProviderTiles("CartoDB") %>%
-  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
-                   weight = 3, color = ~palette1(bdat_sp$arr_month), 
+  addCircleMarkers(lng = bdat_sp$X, lat = bdat_sp$Y,
+                   weight = 3, 
+                   color = ~palette1(bdat_sp$arr_month), 
                    fill = TRUE,
                    label = ~arr_month,
-                   radius = ~dur_no/10,
+                   radius = ~dur_days/10,
                    fillColor = ~palette1(bdat_sp$arr_month)) %>%
   #popup = ~animal.id) %>%
-  addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+  addPolylines(data = bdat_sp, lng =  bdat_sp$X, lat = bdat_sp$Y, 
                color = "grey",  opacity = 0.1, stroke = TRUE) %>%
   addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
             title = "Arrival Month",
