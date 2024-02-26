@@ -95,8 +95,6 @@ breeding_sum <- so |>
   summarise(arrive_mindate = min(DayMonth_s), 
             arrive_maxdate = max(DayMonth_s))
 
-
-
 # read in locations 
 
 locals <- st_read(file.path(out_dat,"stopover_locations_named.gpkg")) %>% 
@@ -107,41 +105,33 @@ solo <- left_join(so, locals) |>
   select(tag.id, move_event, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, name, region, type)
 
 
-solo_breed <- solo %>% filter(movement_dir == "breeding")
+#solo_breed <- solo %>% filter(movement_dir == "breeding")
 
-write_sf(solo_breed, file.path(raw_dat, "stopover_breed_testing.gpkg"), append = FALSE)
+#write_sf(solo_breed, file.path(raw_dat, "stopover_breed_testing.gpkg"), append = FALSE)
 
-
-# start dates 
-
-begin_breed <- solo_breed |> 
-  st_drop_geometry() |> 
-  select(DayMonth_s,DayMonth_e, Subpopulations, dur_days) |> 
-  group_by(Subpopulations) |>  
-  summarise(first_breed_commence = min(DayMonth_s),
-            last_breed_comment = max(DayMonth_s),
-            ave_dur = mean(dur_days),
-            first_depart = min(DayMonth_e),
-            last_depart = max(DayMonth_e))
-
-
-
-
-
-
-
+# 
+# # start dates 
+# 
+# begin_breed <- solo_breed |> 
+#   st_drop_geometry() |> 
+#   select(DayMonth_s,DayMonth_e, Subpopulations, dur_days) |> 
+#   group_by(Subpopulations) |>  
+#   summarise(first_breed_commence = min(DayMonth_s),
+#             last_breed_comment = max(DayMonth_s),
+#             ave_dur = mean(dur_days),
+#             first_depart = min(DayMonth_e),
+#             last_depart = max(DayMonth_e))
 
 
 #############################################################
 # western pacific population 
 #############################################################
 
-
 wgwp <- so %>% filter(Subpopulations == "WGWP")
 
 #length(unique(wgwp$tag.id))
 
-write_sf(wgwp , file.path(raw_dat, "stopover_summaries_wgwp_test.gpkg"))
+#write_sf(wgwp , file.path(raw_dat, "stopover_summaries_wgwp_test.gpkg"))
 #write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
 
 #length(unique(wgwp$tag.id))
@@ -161,9 +151,73 @@ move_dur <- wgwp |>
 # ggplot(move_dur, aes(move_event, tag.id, fill = move_event), colour = movement_dir) +
 #   geom_col(aes(dur_days))
 
+# Figure 1 - stopovers
 
 ggplot(move_dur) + 
   geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")
+
+
+# Geographic distributon of tags
+
+# rf_sf <- sf::st_as_sf(clean, coords = c("location.long","location.lat"), crs = 4326, agr = "constant")
+#st_write(rf_sf, file.path("output", "all_rekn_20230918.gpkg"))
+
+rf_sf <- wgwp %>%
+  filter(Catergory != "static")
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+#Americas <- world %>% dplyr::filter(region_un == "Americas")
+Americas <- world %>% dplyr::filter(continent == "North America")
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 3,  aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
+  scale_fill_viridis_d(option = "magma",begin = 0.1)+
+  facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-130, -60), ylim = c(15, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
+
+## Breeding locations 
+rf_sf_breed <- rf_sf#%>%
+  #filter( movement_dir== "breeding")
+
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf_breed, size = 3, aes(colour= movement_dir)) +#colour = "dark blue") +
+  scale_color_viridis_d() + 
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  # xlab("Longitude") + ylab("Latitude") +
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-125, -60), ylim = c(55, 79), expand = FALSE)+
+  theme_bw()+
+  labs(colour = "Type") + 
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    #legend.title = "", 
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+global
+
+
+
+
+
+
+
 
 
 
@@ -237,7 +291,7 @@ ggplot(move_dur) +
 tdf <- so %>% 
   filter(Subpopulations == "TDF")
 
-length(unique(tdf$tag.id))
+#length(unique(tdf$tag.id))
 
 # move_type <- tdf |> 
 #   st_drop_geometry() |> 
@@ -245,9 +299,7 @@ length(unique(tdf$tag.id))
 #   group_by(Catergory) |> 
 #   summarise(count = length(unique(tag.id)))
 
-
-write_sf(tdf, file.path(raw_dat, "stopover_summaries_tdf_test.gpkg"))
-#write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
+#write_sf(tdf, file.path(raw_dat, "stopover_summaries_tdf_test.gpkg"))
 
 tdf_tag_type <- tag_type |> 
   filter(tag.id %in% tdf$tag.id)
@@ -264,15 +316,117 @@ move_dur <- tdf  |>
   select(tag.id, move_event, start , dur_days, movement_dir, tag.model) %>%
   st_drop_geometry() |> 
   mutate(movement_dir_rc = fct_relevel(as.factor(movement_dir), 
-                                       "northward", "breeding", "southward")) 
+                                       "northward", "breeding", "southward")) |> 
+  filter(dur_days>1)
 
 # ggplot(move_dur, aes(move_event, tag.id, fill = move_event), colour = movement_dir) +
 #   geom_col(aes(dur_days))
 
-
 ggplot(move_dur) + 
   geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
-  geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) 
+  scale_fill_viridis_d()+
+  labs(movement_dir_rc= "Type") + 
+  #geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+# rf_sf <- sf::st_as_sf(clean, coords = c("location.long","location.lat"), crs = 4326, agr = "constant")
+#st_write(rf_sf, file.path("output", "all_rekn_20230918.gpkg"))
+
+rf_sf <- tdf %>%
+  filter(Catergory != "static")
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+#Americas <- world %>% dplyr::filter(continent == "North America")
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 3,  aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
+  scale_fill_viridis_d(option = "magma",begin = 0.1)+
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  #coord_sf(xlim = c(-130, -60), ylim = c(15, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
+
+## Breeding locations 
+rf_sf_breed <- rf_sf#%>%
+#filter( movement_dir== "breeding")
+
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf_breed, size = 3, aes(colour= movement_dir)) +#colour = "dark blue") +
+  scale_color_viridis_d() + 
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  # xlab("Longitude") + ylab("Latitude") +
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-125, -60), ylim = c(50, 79), expand = FALSE)+
+  theme_bw()+
+  labs(colour = "Type") + 
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    #legend.title = "", 
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+global
+
+
+## Southward 
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 3,  aes( colour = movement_dir))+#colour = "dark blue") +
+  scale_color_viridis_d()+
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  labs(colour = "Type") + 
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-130, -60), ylim = c(25, 80), expand = FALSE)+
+  theme_bw()+
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    #legend.title = "", 
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+global
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # 
