@@ -1,6 +1,4 @@
 #Breeding Grounds 
-
-
 library("rnaturalearth")
 library("rnaturalearthdata")
 library(sf)
@@ -21,8 +19,7 @@ library(ggspatial)
 raw_dat <- file.path("output")
 out_dat <- file.path("output", "report")
 
-
-# Edits and calculations 
+# Read in edits document 
 
 sts <- st_read(file.path(out_dat, "stopover_locations.gpkg")) %>%
   dplyr::mutate(stop_dur = round(difftime( end, start,  units = c("days")),1)) %>% 
@@ -32,16 +29,19 @@ sts <- sts |>
   mutate(DayMonth_s = format(as.Date(start ), "%d-%m"),
          DayMonth_e = format(as.Date(end), "%d-%m"))
 
+
 ######################################################################
 ## Filter tags which cant be used 
 
 bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv")) %>%
   mutate(tag.id = as.character(tag.id))
 
-head(sts)
+#head(sts)
 
 so <- left_join(sts, bcat, by = "tag.id")
 
+
+# convert to single column with breeding/wintering/direction
 so <- so |> 
   rowwise() |> 
   mutate(movement_dir = direction) |> 
@@ -55,18 +55,36 @@ breeding_sum <- so |>
             arrive_maxdate = max(DayMonth_s))
 
 
-# 
+###############################
 # # read in locations 
-# 
-# locals <- st_read(file.path(out_dat,"stopover_locations_named.gpkg")) %>% 
-#   st_drop_geometry() |> 
-#   select(name, country, state, region)
-# 
-# solo <- left_join(so, locals) |> 
-#   select(tag.id, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, name, region, type)
+
+locals <- st_read(file.path(out_dat,"stopover_locations_named.gpkg")) %>%
+  st_drop_geometry() |>
+  select(name, country, state, region)
+
+solo <- left_join(so, locals) |>
+  select(tag.id, DayMonth_s,DayMonth_e, start, end, movement_dir, dur_days, Subpopulations, name, region, type)
 
 
-solo_breed <- so %>% filter(movement_dir == "breeding") %>%
+saveRDS(solo, file.path(out_dat , "REKN_stopovers_final.rds"))
+
+
+
+
+
+
+
+
+
+
+
+##################################
+
+# 1) review the breeding grounds
+
+##################################
+
+solo_breed <- solo %>% filter(movement_dir == "breeding") %>%
      select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, type)|> 
   filter(type %in% c( "partial spring/breeding"  ,"partial spring/breeding/partial fall" ,"spring migration/breeding/fall migration/partial wintering",
                       "partial spring/breeding/partial fall " )) #  
@@ -81,16 +99,16 @@ sb <- solo_breed |>
   mutate(dur = doy_end - doy_start)
 
 
+# filter to only the known locations 
 sb <- sb |> 
   filter(Subpopulations %in% c( "WGWP" ,  "nth_sthAm" , "SE",  "TDF")) #         "nth_sthAm_TDF" "SE_nth_sthAm"))
   
-  
 tags <- as.factor(unique(sb$tag.id)) %>% droplevels()
 
+# extend the data table for the figure: 
+
 acc_out <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
-  
   #xx <- tags[40]
-  
   alldat = sb |> 
     filter(tag.id %in% xx) %>% 
     mutate(dur = doy_end - doy_start)
@@ -102,20 +120,22 @@ acc_out <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
   
   outdat
 }
-  
-  
+
+# filter to shorten the length of 
 acc_out <- acc_out |> 
   mutate(date_label = parse_date_time(x = paste(2021,doy), orders = "yj")) %>%
-  mutate(date_label = ymd(date_label))
+  mutate(date_label = ymd(date_label))  %>%
+  filter(doy < 233)
+  
+ # aa <- acc_out |> 
+ #  group_by(doy) |> 
+ #  summarise(counts = n())
 
-
-## Plots 
+## Generate the plots: 
 
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
-#Americas <- world %>% dplyr::filter(region_un == "Americas")
 Americas <- world %>% dplyr::filter(continent == "North America")
-
 
 # entire north America 
 global <- ggplot(data = Americas) +
@@ -139,6 +159,26 @@ global <- ggplot(data = Americas) +
 
 global
 
+p_animate <- global + 
+  transition_time(date_label) + 
+  labs(title = "Date: {round(frame_time)}") +
+  enter_grow() + #enter_drift(x_mod = -1) + 
+  exit_shrink()
+
+# p_animate <- global + 
+#   transition_reveal(along = doy) + 
+#   labs(title = "Day of Year: {round(frame_along)}")
+
+animate(
+  p_animate, 
+  width = 10, 
+  height = 8, 
+  units = "in", 
+  res = 72, 
+  #fps = 10, #10 default  
+  nframes = 50
+)
+
 # 
 # p <- ggplot(acc_out) + 
 #   geom_point(aes(x = X, y = Y, colour = Subpopulations)) + 
@@ -157,44 +197,8 @@ global
 #   )
 
 
-p_animate <- global + 
-  transition_time(date_label) + 
-  labs(title = "Date: {round(frame_time)}") +
-  enter_fade() + #enter_drift(x_mod = -1) + 
-  exit_shrink()
 
-# p_animate <- global + 
-#   transition_reveal(along = doy) + 
-#   labs(title = "Day of Year: {round(frame_along)}")
-
-animate(
-  p_animate, 
-  width = 10, 
-  height = 8, 
-  units = "in", 
-  res = 72, 
-  #fps = 10, #10 default  
-  nframes = 150
-)
-
-
-
-###############################################################
-ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, colour = country)) +
-  geom_point(alpha = 0.7, show.legend = FALSE) +
-  scale_colour_manual(values = country_colors) +
-  scale_size(range = c(2, 12)) +
-  scale_x_log10() +
-  facet_wrap(~continent) +
-  # Here comes the gganimate specific bits
-  labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
-  transition_time(year) +
-  ease_aes('linear')
-
-
-
-
-
+## Generate the 
 
 p <- ggplot(acc_out) +
   geom_point(aes(x = X, y = Y, colour = Subpopulations)) +
@@ -231,7 +235,681 @@ animate(
 
 
 
+
+
+
+
+
+
+##################################
+
+# 2) Hudson Bay  - northward
+
+##################################
+
+solo_hb_n <- solo %>% filter(movement_dir == "northward") %>%
+  select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, type, region)|> 
+  #filter(type %in% c( "partial spring/breeding"  ,"partial spring/breeding/partial fall" ,"spring migration/breeding/fall migration/partial wintering",
+  #                    "partial spring/breeding/partial fall " )) |> 
+  filter(region %in% c( "hudson_bay_se", "hudson_bay_west","hudson_bay_north")) |> 
+  filter(dur_days >= 2)
+
+
+solo_hb_n<- cbind(st_coordinates(solo_hb_n),solo_hb_n)
+
+shb <- solo_hb_n |> 
+  mutate(doy_start = yday(start), 
+         doy_end = yday(end)) |> 
+  select(X, Y, tag.id, Subpopulations, doy_start, doy_end)%>%
+  st_drop_geometry()%>% 
+  mutate(dur = doy_end - doy_start)
+
+
+# filter to only the known locations 
+shb  <- shb  |> 
+  filter(Subpopulations %in% c( "WGWP" ,  "nth_sthAm" , "SE",  "TDF")) #         "nth_sthAm_TDF" "SE_nth_sthAm"))
+
+tags <- as.factor(unique(shb$tag.id)) %>% droplevels()
+
+# extend the data table for the figure: 
+
+acc_out_sbh <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
+  #xx <- tags[9]
+  xx  <- as.character(xx)
+  
+  alldat = shb |> 
+    filter(tag.id == xx) %>% 
+    mutate(dur = doy_end - doy_start) %>%
+    filter(dur >0)
+  
+  alldat = alldat %>%
+    mutate(no_stops = seq(1, length(alldat$X), 1))
+  
+  if(length(alldat$X > 1)){
+    
+    stops <- as.factor(unique(alldat$no_stops)) %>% droplevels()
+    
+    out_single <- foreach::foreach(ss = levels(stops), .combine = rbind)%do% {
+      
+      #ss <- stops[1]
+      ss <- as.numeric(ss)
+      
+      sdat = alldat  |> 
+        filter(no_stops == ss) 
+      
+      sdat = sdat  %>% 
+        slice(rep(1:n(), times = sdat$dur))
+      
+      sdat$doy = seq(sdat$doy_start[1], sdat$doy_end[1]-1, 1)
+      
+      sdat
+    
+      } 
+    
+    out_single 
+    
+    } else {
+    
+     
+   out_single <-  alldat %>% 
+     slice(rep(1:n(), times = alldat$dur))
+  
+   out_single$doy = seq(out_single$doy_start[1], out_single$doy_end[1]-1, 1)
+  
+   out_single
+   
+   }
+  
+}
+
+
+
+# filter to shorten the length of 
+acc_out_sbh <- acc_out_sbh |> 
+  mutate(date_label = parse_date_time(x = paste(2021,doy), orders = "yj")) %>%
+  mutate(date_label = ymd(date_label))  #%>%
+  #filter(doy < 233)
+# 
+# aa <- acc_out_sbh  |>
+#  group_by(doy) |>
+#  summarise(counts = n())
+# 
+
+## Generate the plots: 
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+Americas <- world %>% dplyr::filter(continent == "North America")
+
+# entire north America 
+global_north <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_point(data = acc_out_sbh, aes(x = X, y = Y, colour = Subpopulations), size = 4) +#colour = "dark blue") +
+  scale_color_viridis_d() + 
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  # xlab("Longitude") + ylab("Latitude") +
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-110, -65), ylim = c(45, 70), expand = FALSE)+
+  theme_bw()+
+  labs(colour = "Subpopulation") + 
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+global_north
+
+p_animate_north <- global_north + 
+  transition_time(date_label) + 
+  labs(title = "Date: {round(frame_time)}") +
+  enter_grow() + #enter_drift(x_mod = -1) + 
+  exit_shrink()
+
+animate(
+  p_animate_north, 
+  width = 10, 
+  height = 8, 
+  units = "in", 
+  res = 72, 
+  #fps = 10, #10 default  
+  nframes = 50
+)
+
+
+
+
+
+
+
+##################################
+
+# 3) Hudson Bay  - southward
+
+##################################
+
+solo_hb_s <- solo %>% filter(movement_dir == "southward") %>%
+  select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, type, region)|> 
+  #filter(type %in% c( "partial spring/breeding"  ,"partial spring/breeding/partial fall" ,"spring migration/breeding/fall migration/partial wintering",
+  ##                    "partial spring/breeding/partial fall " )) |> 
+  filter(region %in% c( "hudson_bay_se", "hudson_bay_west","hudson_bay_north"))
+
+solo_hb_s<- cbind(st_coordinates(solo_hb_s),solo_hb_s)
+
+shb <- solo_hb_s |> 
+  mutate(doy_start = yday(start), 
+         doy_end = yday(end)) |> 
+  select(X, Y, tag.id, Subpopulations, doy_start, doy_end)%>%
+  st_drop_geometry()%>% 
+  mutate(dur = doy_end - doy_start)
+
+
+# filter to only the known locations 
+shb  <- shb  |> 
+  filter(Subpopulations %in% c( "WGWP" ,  "nth_sthAm" , "SE",  "TDF")) #         "nth_sthAm_TDF" "SE_nth_sthAm"))
+
+tags <- as.factor(unique(shb$tag.id)) %>% droplevels()
+
+# extend the data table for the figure: 
+
+acc_out_sbh_sth <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
+  #xx <- tags[9]
+  xx  <- as.character(xx)
+  
+  alldat = shb |> 
+    filter(tag.id == xx) %>% 
+    mutate(dur = doy_end - doy_start) %>%
+    filter(dur >0)
+  
+  alldat = alldat %>%
+    mutate(no_stops = seq(1, length(alldat$X), 1))
+  
+  if(length(alldat$X > 1)){
+    
+    stops <- as.factor(unique(alldat$no_stops)) %>% droplevels()
+    
+    out_single <- foreach::foreach(ss = levels(stops), .combine = rbind)%do% {
+      
+      #ss <- stops[1]
+      ss <- as.numeric(ss)
+      
+      sdat = alldat  |> 
+        filter(no_stops == ss) 
+      
+      sdat = sdat  %>% 
+        slice(rep(1:n(), times = sdat$dur))
+      
+      sdat$doy = seq(sdat$doy_start[1], sdat$doy_end[1]-1, 1)
+      
+      sdat
+      
+    } 
+    
+    out_single 
+    
+  } else {
+    
+    
+    out_single <-  alldat %>% 
+      slice(rep(1:n(), times = alldat$dur))
+    
+    out_single$doy = seq(out_single$doy_start[1], out_single$doy_end[1]-1, 1)
+    
+    out_single
+    
+  }
+  
+}
+
+
+# filter to shorten the length of 
+acc_out_sbh_sth <- acc_out_sbh_sth |> 
+  mutate(date_label = parse_date_time(x = paste(2021,doy), orders = "yj")) %>%
+  mutate(date_label = ymd(date_label))  #%>%
+
+#filter(doy < 233)
+# 
+# aa <- acc_out_sbh  |>
+#  group_by(doy) |>
+#  summarise(counts = n())
+# 
+
+## Generate the plots: 
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+Americas <- world %>% dplyr::filter(continent == "North America")
+
+# entire north America 
+
+global_sth <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_point(data = acc_out_sbh_sth, aes(x = X, y = Y, colour = Subpopulations), size = 4) +#colour = "dark blue") +
+  scale_color_viridis_d() + 
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  # xlab("Longitude") + ylab("Latitude") +
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-110, -65), ylim = c(45, 70), expand = FALSE)+
+  theme_bw()+
+  labs(colour = "Subpopulation") + 
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+global_sth
+
+p_animate_sth <- global_sth + 
+  transition_time(date_label) + 
+  labs(title = "Date: {round(frame_time)}") +
+  enter_grow() + #enter_drift(x_mod = -1) + 
+  exit_shrink()
+
+animate(
+  p_animate_sth , 
+  width = 10, 
+  height = 8, 
+  units = "in", 
+  res = 72, 
+  #fps = 10, #10 default  
+  nframes = 50
+)
+
+
+
+
+
+
+
+
+
+
+
+##################################
+
+# 4) Delaware Bay 
+
+##################################
+
+solo_db <- solo %>% #filter(movement_dir == "southward") %>%
+  select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, type, region)|> 
+# filter(type %in% c( "partial spring/breeding"  ,"partial spring/breeding/partial fall" ,"spring migration/breeding/fall migration/partial wintering",
+#                      "partial spring/breeding/partial fall " )) |> 
+  filter(region %in% c("delbay_region"))
+
+solo_db <- cbind(st_coordinates(solo_db), solo_db)
+
+shb <- solo_db |> 
+  mutate(doy_start = yday(start), 
+         doy_end = yday(end)) |> 
+  select(X, Y, tag.id, Subpopulations, doy_start, doy_end)%>%
+  st_drop_geometry()%>% 
+  mutate(dur = doy_end - doy_start)
+
+
+# filter to only the known locations 
+shb  <- shb  |> 
+  filter(Subpopulations %in% c( "WGWP" ,  "nth_sthAm" , "SE",  "TDF")) #         "nth_sthAm_TDF" "SE_nth_sthAm"))
+
+tags <- as.factor(unique(shb$tag.id)) %>% droplevels()
+
+# extend the data table for the figure: 
+
+acc_out_db <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
+  #xx <- tags[9]
+  xx  <- as.character(xx)
+  
+  alldat = shb |> 
+    filter(tag.id == xx) %>% 
+    mutate(dur = doy_end - doy_start) %>%
+    filter(dur >0)
+  
+  alldat = alldat %>%
+    mutate(no_stops = seq(1, length(alldat$X), 1))
+  
+  if(length(alldat$X > 1)){
+    
+    stops <- as.factor(unique(alldat$no_stops)) %>% droplevels()
+    
+    out_single <- foreach::foreach(ss = levels(stops), .combine = rbind)%do% {
+      
+      #ss <- stops[1]
+      ss <- as.numeric(ss)
+      
+      sdat = alldat  |> 
+        filter(no_stops == ss) 
+      
+      sdat = sdat  %>% 
+        slice(rep(1:n(), times = sdat$dur))
+      
+      sdat$doy = seq(sdat$doy_start[1], sdat$doy_end[1]-1, 1)
+      
+      sdat
+      
+    } 
+    
+    out_single 
+    
+  } else {
+    
+    
+    out_single <-  alldat %>% 
+      slice(rep(1:n(), times = alldat$dur))
+    
+    out_single$doy = seq(out_single$doy_start[1], out_single$doy_end[1]-1, 1)
+    
+    out_single
+    
+  }
+  
+}
+
+
+# filter to shorten the length of 
+acc_out_db <- acc_out_db |> 
+  mutate(date_label = parse_date_time(x = paste(2021,doy), orders = "yj")) %>%
+  mutate(date_label = ymd(date_label))  #%>%
+
+#filter(doy < 233)
+# 
+# aa <- acc_out_sbh  |>
+#  group_by(doy) |>
+#  summarise(counts = n())
+# 
+
+## Generate the plots: 
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+Americas <- world %>% dplyr::filter(continent == "North America")
+
+# entire north America 
+ 
+global_db <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_point(data = acc_out_db, aes(x = X, y = Y, colour = Subpopulations), size = 4) +#colour = "dark blue") +
+  scale_color_viridis_d() + 
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  # xlab("Longitude") + ylab("Latitude") +
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-77, -73), ylim = c(37, 40), expand = FALSE)+
+  theme_bw()+
+  labs(colour = "Subpopulation") + 
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+global_db
+
+p_animate_db <- global_db + 
+  transition_time(date_label) + 
+  labs(title = "Date: {round(frame_time)}") +
+  enter_grow() + #enter_drift(x_mod = -1) + 
+  exit_shrink()
+
+xx <- animate(
+  p_animate_db  , 
+  width = 10, 
+  height = 8, 
+  units = "in", 
+  res = 72, 
+  #fps = 10, #10 default  
+  nframes = 300
+)
+
+xx
+
+
+
+
+
+
+
+
+
+##################################
+
+# 5)  Northern Nth Alerica
+
+##################################
+
+solo_stham <- solo %>% filter(movement_dir == "southward") %>%
+  select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, type, region)|> 
+  # filter(type %in% c( "partial spring/breeding"  ,"partial spring/breeding/partial fall" ,"spring migration/breeding/fall migration/partial wintering",
+  #                      "partial spring/breeding/partial fall " )) |> 
+  filter(region %in% c("nth_venezuela", "guyana" , "northern_brazil")) 
+
+solo_stham <- cbind(st_coordinates(solo_stham ), solo_stham )
+
+shb <- solo_stham  |> 
+  mutate(doy_start = yday(start), 
+         doy_end = yday(end),
+         week_start = lubridate::isoweek(start),
+          week_end = lubridate::isoweek(end)) |> 
+  select(X, Y, tag.id, Subpopulations, doy_start, doy_end, week_start, week_end)%>%
+  st_drop_geometry() %>% 
+  mutate(dur = doy_end - doy_start,
+         dur_week = week_end - week_start) |> 
+  filter(dur>=2)
+
+
+# filter to only the known locations 
+shb  <- shb  |> 
+  filter(Subpopulations %in% c( "nth_sthAm" , "SE",  "TDF", "nth_sthAm_TDF")) #         "nth_sthAm_TDF" "SE_nth_sthAm"))
+
+tags <- as.factor(unique(shb$tag.id)) %>% droplevels()
+
+# extend the data table for the figure: 
+
+acc_out_stham <- foreach::foreach(xx = levels(tags), .combine = rbind)%do% {
+  
+  #xx <- tags[2]
+  #xx  <- as.numeric(xx)
+  
+  alldat = shb |> 
+    filter(tag.id == xx) %>% 
+    mutate(dur = doy_end - doy_start) %>%
+    filter(dur >0)
+  
+  alldat = alldat %>%
+    mutate(no_stops = seq(1, length(alldat$X), 1))
+  
+  if(length(alldat$X > 1)){
+    
+    stops <- as.factor(unique(alldat$no_stops)) %>% droplevels()
+    
+    out_single <- foreach::foreach(ss = levels(stops), .combine = rbind)%do% {
+      #ss <- stops[1]
+      ss <- as.numeric(ss)
+      
+      sdat = alldat  |> 
+        filter(no_stops == ss) 
+      
+      sdat = sdat  %>% 
+        slice(rep(1:n(), times = sdat$dur))
+      
+      sdat$doy = seq(sdat$doy_start[1], sdat$doy_end[1]-1, 1)
+      
+      sdat
+    } 
+    
+    out_single 
+    
+  } else {
+    
+    out_single <-  alldat %>% 
+      slice(rep(1:n(), times = alldat$dur))
+    
+    out_single$doy = seq(out_single$doy_start[1], out_single$doy_end[1]-1, 1)
+    
+    out_single
+    
+  }
+  
+}
+
+# filter to shorten the length of 
+acc_out_stham  <- acc_out_stham  |> 
+  mutate(date_label = parse_date_time(x = paste(2021,doy), orders = "yj")) %>%
+  mutate(date_label = ymd(date_label)) %>%
+  mutate(week_label = lubridate::isoweek(date_label))
+
+#filter(doy < 233)
+# 
+# aa <- acc_out_sbh  |>
+#  group_by(doy) |>
+#  summarise(counts = n())
+# 
+
+
+## Generate the plots: 
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+
+# entire north America 
+global_nthsm <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_point(data = acc_out_stham , aes(x = X, y = Y, colour = Subpopulations), size = 4) +#colour = "dark blue") +
+  scale_color_viridis_d() + 
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  #xlab("Longitude") + ylab("Latitude") +
+  #coord_sf(xlim = c(-130, -20), ylim = c(-50, 80), expand = FALSE)+
+  coord_sf(xlim = c(-80, -25), ylim = c(-15, 20), expand = FALSE)+
+  theme_bw()+
+  labs(colour = "Subpopulation") + 
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines")
+  )
+
+global_nthsm 
+
+p_animate_nthsm  <- global_nthsm + 
+  transition_time(date_label) + 
+  labs(title = "Date: {round(frame_time)}") +
+  enter_grow() + #enter_drift(x_mod = -1) + 
+  exit_shrink()
+
+animate(
+  p_animate_nthsm  , 
+  width = 10, 
+  height = 8, 
+  units = "in", 
+  res = 72, 
+  fps = 10, #10 default  
+  nframes = 150
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ## Generate the 
+# 
+# p <- ggplot(acc_out_sbh) +
+#   geom_point(aes(x = X, y = Y, colour = Subpopulations)) +
+#   # geom_path(aes(x = X, y = Y, colour = Subpopulations)) +
+#   #facet_grid(~tag.id) +
+#   scale_color_viridis_d() +
+#   coord_sf() +
+#   labs(colour = "Day of Year") +
+#   theme_bw() +
+#   theme(
+#     axis.text = element_blank(),
+#     axis.ticks = element_blank(),
+#     axis.title = element_blank(),
+#     legend.position = "bottom",
+#     legend.key.width = unit(3, "lines")) 
+# 
+# p_animate <- p + 
+#   transition_time(doy) + 
+#   labs(title = "Day of Year: {round(frame_along)}")
+# 
+# # p_animate <- global + 
+# #   transition_reveal(along = doy) + 
+# #   labs(title = "Day of Year: {round(frame_along)}")
+# 
+# animate(
+#   p_animate, 
+#   width = 10, 
+#   height = 6, 
+#   units = "in", 
+#   res = 72, 
+#   fps = 10, 
+#   nframes = 300
+# )
+
+
 ###################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -288,11 +966,6 @@ begin_breed <- solo_breed |>
             ave_dur = mean(dur_days),
             first_depart = min(DayMonth_e),
             last_depart = max(DayMonth_e))
-
-
-
-
-
 
 
 
