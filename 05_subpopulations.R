@@ -78,11 +78,6 @@ so <- so |>
   mutate(movement_dir = direction) |> 
   mutate(movement_dir = ifelse(breed_type %in% c("wintering", "breeding"), breed_type, movement_dir))
 
-
-#length(sts$tag.id)
-#length(so$tag.id)
-
-
 ### Write out for review 
 
 #write_sf(so, file.path(raw_dat, "stopover_summaries_testing.gpkg"), append = FALSE)
@@ -562,7 +557,7 @@ global
   #   group_by(Catergory) |> 
   #   summarise(count = length(unique(tag.id)))
   
-  write_sf(se, file.path(raw_dat, "stopover_summaries_se_test.gpkg"))
+  #write_sf(se, file.path(raw_dat, "stopover_summaries_se_test.gpkg"))
   #write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
   
   se_tag_type <- tag_type |> 
@@ -576,14 +571,70 @@ global
     mutate(movement_dir_rc = fct_relevel(as.factor(movement_dir), 
                                          "northward", "breeding", "southward")) 
   
-  # ggplot(move_dur, aes(move_event, tag.id, fill = move_event), colour = movement_dir) +
-  #   geom_col(aes(dur_days))
+##Stopping plots 
   
   ggplot(move_dur) + 
     geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
-    geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) 
+    scale_fill_viridis_d()+
+    labs(movement_dir_rc= "Type") + 
+    #geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) +
+    theme(
+      #axis.text = element_blank(),
+      #axis.ticks = element_blank(),
+      #axis.title = element_blank(),
+      legend.position = "bottom",
+      legend.key.width = unit(3, "lines")
+    )
   
+  
+ # general plot 
 
+  rf_sf <- se %>%
+    filter(Catergory != "static")
+  
+  world <- ne_countries(scale = "medium", returnclass = "sf")
+  Americas <- world %>% dplyr::filter(region_un == "Americas")
+  global <- ggplot(data = Americas) +
+    geom_sf(color = "grey") +
+    geom_sf(data = rf_sf, size = 3,  aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
+    scale_color_viridis_d()+
+    #facet_wrap(~tag.id)+
+    # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+    xlab("Longitude") + ylab("Latitude") +
+    coord_sf(xlim = c(-130, -40), ylim = c(5, 80), expand = FALSE)+
+    theme_bw()+
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      #axis.title = element_blank(),
+      legend.position = "bottom",
+      legend.key.width = unit(3, "lines")
+    )
+  
+  global
+  
+  
+  ## Breeding locations 
+  rf_sf_breed <- rf_sf
+  
+  # entire north America 
+  global <- ggplot(data = Americas) +
+    geom_sf(color = "grey") +
+    geom_sf(data = rf_sf_breed, size = 3, aes(colour= movement_dir)) +#colour = "dark blue") +
+    scale_color_viridis_d() + 
+    coord_sf(xlim = c(-125, -60), ylim = c(50, 79), expand = FALSE)+
+    theme_bw()+
+    labs(colour = "Type") + 
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title = element_blank(),
+      #legend.title = "", 
+      legend.position = "bottom",
+      legend.key.width = unit(3, "lines")
+    )
+  
+  global
   
   
   ######################################################################
@@ -627,8 +678,7 @@ global
   #############################################################
   # Northern Sth America 
   #############################################################
-  
-  
+
   sth <- so %>% filter(Subpopulations == "nth_sthAm")
   
   write_sf(sth , file.path(raw_dat, "stopover_summaries_nthstham_test.gpkg"))
@@ -636,25 +686,81 @@ global
   
   #length(unique(wgwp$tag.id))
   
-  move_type <- wgwp |> 
+  move_type <- sth |> 
     st_drop_geometry() |> 
     select(tag.id, Catergory) |> 
     group_by(Catergory) |> 
     summarise(count = length(unique(tag.id)))
   
-  move_dur <- wgwp |> 
+  move_dur <- sth |> 
     select(tag.id, move_event, start , dur_days, movement_dir) %>%
     st_drop_geometry() |> 
     mutate(movement_dir_rc = fct_relevel(as.factor(movement_dir), 
                                          "northward", "breeding", "southward")) 
-  
-  # ggplot(move_dur, aes(move_event, tag.id, fill = move_event), colour = movement_dir) +
-  #   geom_col(aes(dur_days))
-  
+  ##Stopping plots 
   
   ggplot(move_dur) + 
-    geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")
+    geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
+    scale_fill_viridis_d()+
+    labs(movement_dir_rc= "Type") + 
+    #geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) +
+    theme(
+      #axis.text = element_blank(),
+      #axis.ticks = element_blank(),
+      #axis.title = element_blank(),
+      legend.position = "bottom",
+      legend.key.width = unit(3, "lines")
+    )
   
+  
+  # general plot 
+  
+  rf_sf <- sth %>%
+    filter(Catergory != "static")
+  
+  world <- ne_countries(scale = "medium", returnclass = "sf")
+  Americas <- world %>% dplyr::filter(region_un == "Americas")
+  global <- ggplot(data = Americas) +
+    geom_sf(color = "grey") +
+    geom_sf(data = rf_sf, size = 3,  aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
+    scale_color_viridis_d()+
+    #facet_wrap(~tag.id)+
+    # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+    xlab("Longitude") + ylab("Latitude") +
+    coord_sf(xlim = c(-130, -20), ylim = c(-20, 80), expand = FALSE)+
+    theme_bw()+
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      #axis.title = element_blank(),
+      legend.position = "bottom",
+      legend.key.width = unit(3, "lines")
+    )
+  
+  global
+  
+  
+  ## Breeding locations 
+  rf_sf_breed <- rf_sf
+  
+  # entire north America 
+  global <- ggplot(data = Americas) +
+    geom_sf(color = "grey") +
+    geom_sf(data = rf_sf_breed, size = 3, aes(colour= movement_dir)) +#colour = "dark blue") +
+    scale_color_viridis_d() + 
+    coord_sf(xlim = c(-125, -60), ylim = c(45, 79), expand = FALSE)+
+    theme_bw()+
+    labs(colour = "Type") + 
+    theme(
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title = element_blank(),
+      #legend.title = "", 
+      legend.position = "bottom",
+      legend.key.width = unit(3, "lines")
+    )
+  
+  global
   
   
   ## Nth Bound 

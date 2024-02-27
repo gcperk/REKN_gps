@@ -685,7 +685,7 @@ xx
 
 ##################################
 
-solo_stham <- solo %>% filter(movement_dir == "southward") %>%
+solo_stham <- solo %>% #filter(movement_dir == "southward") %>%
   select(tag.id,  start, end, DayMonth_s,DayMonth_e, movement_dir, dur_days, Subpopulations, type, region)|> 
   # filter(type %in% c( "partial spring/breeding"  ,"partial spring/breeding/partial fall" ,"spring migration/breeding/fall migration/partial wintering",
   #                      "partial spring/breeding/partial fall " )) |> 
