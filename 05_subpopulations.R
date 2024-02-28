@@ -1,3 +1,5 @@
+# subpopulation detailed analysis and figures: per subpopulation 
+
 library("rnaturalearth")
 library("rnaturalearthdata")
 library(sf)
@@ -25,17 +27,7 @@ out_dat <- file.path("output", "report")
 
 sts <- st_read(file.path(out_dat, "stopover_locations.gpkg")) %>%
   dplyr::mutate(stop_dur = round(difftime( end, start,  units = c("days")),1)) %>% 
-  dplyr::mutate(dur_days = as.numeric(stop_dur)) #%>% 
- # dplyr::mutate(
-    
-#hist(as.numeric(sts$stop_dur), breaks = 100)
-
-# man_out <- man_out %>%
-#   #man_out <- man11 %>%
-#   cbind(st_coordinates(.))%>%
-#   rename(location.lat = Y, 
-#          location.long = X) %>%
-#   st_drop_geometry()
+  dplyr::mutate(dur_days = as.numeric(stop_dur)) 
 
 sts <- sts |> 
   mutate(DayMonth_s = format(as.Date(start ), "%d-%m"),
@@ -52,16 +44,54 @@ sts <- sts |>
 #   coord_flip()
 # 
 
+allsf <- st_read(file.path(raw_dat ,"xall_rekn_20240207.gpkg")) %>%
+  mutate(tag.id = as.character(tag.id),
+         date_time = ymd_hms(date_time))
 
-
-
-#all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv")) %>% 
-#   mutate(tag.id = as.character(tag.id), 
-#          date_time = ymd_hms(date_time))
+all <- read.csv(file.path(raw_dat ,"xall_rekn_20240207.csv")) %>%
+  mutate(tag.id = as.character(tag.id),
+         date_time = ymd_hms(date_time))
 
 tag_type <- all |> 
   dplyr::select(tag.id, tag.manufacturer.name, tag.model) |> 
   distinct()
+
+# create a basic plot 
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+#Americas <- world %>% dplyr::filter(continent == "North America")
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = allsf, size = 1, colour = "darkblue" ) + #aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
+  scale_fill_viridis_d(option = "magma",begin = 0.1)+
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-180, -20), ylim = c(-60, 80), expand = FALSE)+
+  #coord_sf(xlim = c(-130, -60), ylim = c(15, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ######################################################################
 ## Filter tags which cant be used 
