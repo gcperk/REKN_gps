@@ -1,4 +1,6 @@
 
+# generate base data for stop-overs
+
 library(sf)
 library(ggplot2)
 library(stringr)
