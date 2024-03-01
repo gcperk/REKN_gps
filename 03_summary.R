@@ -168,13 +168,15 @@ dur_plot
 
 dur_hist <- ggplot(dur, aes(x= dur_days))+  
   geom_histogram() + #fill="white", position="dodge") +  
+  scale_color_viridis_d()+
   #facet_wrap(~year)+  
   xlab("duration (days)")   
 
 dur_hist  
 
 p_duration <- ggplot(dloc, aes(factor(month), fill = factor(year)))+  
-  geom_bar(position = "dodge") +  
+  geom_bar(position = "dodge") +
+  scale_color_viridis_d()+
   #xlim(1,12)+  
   #facet_wrap(~tag.local.identifier)+  
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))  
@@ -189,9 +191,9 @@ p_duration <- ggplot(dloc, aes(factor(month), fill = factor(year)))+
 dur_type <- dur %>% 
   left_join(ref) 
 
-dur_hist <- ggplot(dur_type, aes(x= dur_days)) +  
+dur_hist <- ggplot(dur_type, aes(x= dur_days, fill = tag.model)) +  
   geom_histogram(position = "dodge") + #fill="white", position="dodge") +  
-  facet_wrap(~tag.model)+  
+  scale_fill_viridis_d()+
   xlab("duration (days)")  
 
 dur_hist
@@ -199,14 +201,20 @@ dur_hist
 aa <- dur_type |> select(tag.id , dur_days, tag.model, proj)%>%
   distinct()
 
+
+
 p1 <- ggplot(aa, aes(x= dur_days)) +
   geom_histogram()
 
 
 dur_type_sum <- dur_type |> select(tag.id , dur_days, tag.model)%>%
   distinct()%>% 
+  filter(dur_days>0) |> 
   group_by( tag.model) |> 
-  summarise(mean_dur = mean(dur_days), 
+  summarise(count = n(),
+            min = min(dur_days), 
+            max = max(dur_days),
+            mean_dur = mean(dur_days), 
             sd = sd(dur_days))
 
 ggplot(dur_type_sum) +
@@ -281,8 +289,12 @@ ggplot(bs, aes(x = as.factor(month), y = n)) +
 # By year 
 ggplot(bs, aes(x = as.factor(month), y = n, fill = as.factor(year))) +
   geom_col(position = position_dodge2(width = 0.9, preserve = "single"))+
+  scale_fill_viridis_d()+
   #geom_bar(stat = "identity", position = "dodge") #+
-  facet_wrap(~year)#, position = position_stack(reverse = TRUE))
+  facet_wrap(~year)+
+  theme_bw()+
+  xlab("month")+ ylab("count")+
+  theme(legend.position = "none")
 
 
 ####################################################################################
