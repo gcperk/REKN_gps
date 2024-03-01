@@ -56,6 +56,9 @@ tag_type <- all |>
   dplyr::select(tag.id, tag.manufacturer.name, tag.model) |> 
   distinct()
 
+
+
+###############################################################
 # create a basic plot 
 
 world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -65,7 +68,7 @@ Americas <- world %>% dplyr::filter(region_un == "Americas")
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
   geom_sf(data = allsf, size = 1, colour = "darkblue" ) + #aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
-  scale_fill_viridis_d(option = "magma",begin = 0.1)+
+  scale_color_viridis_d(option = "magma",begin = 0.1)+
   #facet_wrap(~tag.id)+
   # geom_point(ru, aes(x = lng, y = lat), size = 4) +
   xlab("Longitude") + ylab("Latitude") +
@@ -76,10 +79,6 @@ global <- ggplot(data = Americas) +
         axis.text.y=element_blank())
 
 global
-
-
-
-
 
 
 
@@ -134,18 +133,30 @@ solo <- left_join(so, locals) |>
 
 #write_sf(solo_breed, file.path(raw_dat, "stopover_breed_testing.gpkg"), append = FALSE)
 
-# 
-# # start dates 
-# 
-# begin_breed <- solo_breed |> 
-#   st_drop_geometry() |> 
-#   select(DayMonth_s,DayMonth_e, Subpopulations, dur_days) |> 
-#   group_by(Subpopulations) |>  
-#   summarise(first_breed_commence = min(DayMonth_s),
-#             last_breed_comment = max(DayMonth_s),
-#             ave_dur = mean(dur_days),
-#             first_depart = min(DayMonth_e),
-#             last_depart = max(DayMonth_e))
+
+#####################################################
+
+# create a plot of Stopover loctions
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+#Americas <- world %>% dplyr::filter(continent == "North America")
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = so, size = 2, aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
+  scale_color_viridis_d()+
+  #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-180, -20), ylim = c(-60, 80), expand = FALSE)+
+  #coord_sf(xlim = c(-130, -60), ylim = c(15, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
 
 
 #############################################################
@@ -179,8 +190,15 @@ move_dur <- wgwp |>
 # Figure 1 - stopovers
 
 ggplot(move_dur) + 
-  geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")
-
+  geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
+  scale_fill_viridis_d()+
+  xlab("Duration (days)") + ylab("Tag id.")+
+  theme(
+    axis.ticks = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = unit(3, "lines"),
+    legend.title=element_blank()
+  )
 
 # Geographic distributon of tags
 
@@ -350,15 +368,17 @@ move_dur <- tdf  |>
 ggplot(move_dur) + 
   geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
   scale_fill_viridis_d()+
-  labs(movement_dir_rc= "Type") + 
-  #geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) +
+  xlab("Duration (days)") + ylab("Tag id.")+
   theme(
-    axis.text = element_blank(),
     axis.ticks = element_blank(),
-    axis.title = element_blank(),
     legend.position = "bottom",
-    legend.key.width = unit(3, "lines")
+    legend.key.width = unit(3, "lines"),
+    legend.title=element_blank()
   )
+
+
+
+
 
 # rf_sf <- sf::st_as_sf(clean, coords = c("location.long","location.lat"), crs = 4326, agr = "constant")
 #st_write(rf_sf, file.path("output", "all_rekn_20230918.gpkg"))
@@ -604,19 +624,16 @@ global
 ##Stopping plots 
   
   ggplot(move_dur) + 
-    geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
-    scale_fill_viridis_d()+
-    labs(movement_dir_rc= "Type") + 
-    #geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) +
-    theme(
-      #axis.text = element_blank(),
-      #axis.ticks = element_blank(),
-      #axis.title = element_blank(),
-      legend.position = "bottom",
-      legend.key.width = unit(3, "lines")
-    )
-  
-  
+       geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
+       scale_fill_viridis_d()+
+       xlab("Duration (days)") + ylab("Tag id.")+
+       theme(
+         axis.ticks = element_blank(),
+           legend.position = "bottom",
+           legend.key.width = unit(3, "lines"),
+           legend.title=element_blank()
+         )
+
  # general plot 
 
   rf_sf <- se %>%
@@ -729,19 +746,17 @@ global
                                          "northward", "breeding", "southward")) 
   ##Stopping plots 
   
+  
   ggplot(move_dur) + 
     geom_bar(aes(y=tag.id, x=dur_days, fill=movement_dir_rc ), colour="black", stat="identity")+
     scale_fill_viridis_d()+
-    labs(movement_dir_rc= "Type") + 
-    #geom_text(aes(y=tag.id, x=200, label=tag.model), vjust=0, size = 2.5) +
+    xlab("Duration (days)") + ylab("Tag id.")+
     theme(
-      #axis.text = element_blank(),
-      #axis.ticks = element_blank(),
-      #axis.title = element_blank(),
+      axis.ticks = element_blank(),
       legend.position = "bottom",
-      legend.key.width = unit(3, "lines")
+      legend.key.width = unit(3, "lines"),
+      legend.title=element_blank()
     )
-  
   
   # general plot 
   
