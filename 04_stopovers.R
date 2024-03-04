@@ -158,28 +158,28 @@ hist(as.numeric(sts$stop_dur), breaks = 100)
 
 
 
-
-
-
-######################################################################
-## Filter tags which cant be used 
-
-bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv")) %>%
-    mutate(tag.id = as.character(tag.id))
-
-head(sts)
-
-so <- left_join(sts, bcat, by = "tag.id")
-
-#length(sts$tag.id)
-#length(so$tag.id)
-
-
-### Write out for review 
-
-
-write_sf(so, file.path(raw_dat, "stopover_summaries_testing.gpkg"))
-#write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
-
-
-
+# 
+# 
+# 
+# ######################################################################
+# ## Filter tags which cant be used 
+# 
+# bcat <- read.csv(file.path(out_dat,"proj_animalid_edited.csv")) %>%
+#     mutate(tag.id = as.character(tag.id))
+# 
+# head(sts)
+# 
+# so <- left_join(sts, bcat, by = "tag.id")
+# 
+# #length(sts$tag.id)
+# #length(so$tag.id)
+# 
+# 
+# ### Write out for review 
+# 
+# 
+# write_sf(so, file.path(raw_dat, "stopover_summaries_testing.gpkg"))
+# #write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
+# 
+# 
+# 

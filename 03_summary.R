@@ -110,12 +110,13 @@ capture_loc <- ref |>
 ## capture age and sex 
 sex_sum <- ref |> 
   dplyr::select(tag.id, study.site, proj, animal.life.stage, animal.sex) |> 
-  group_by(animal.sex,proj) |> 
+  group_by(animal.sex, proj) |> 
   summarise(no.of.tags = length(unique(tag.id)))
 
 age_sum <- ref |> 
   dplyr::select(tag.id, study.site, proj, animal.life.stage) |> 
-  group_by(animal.life.stage , study.site) |> 
+ #group_by(animal.life.stage , study.site) |> 
+  group_by(animal.life.stage, proj ) |> 
   #group_by(animal.life.stage ) |> 
   summarise(no.of.tags = length(unique(tag.id)))
 
