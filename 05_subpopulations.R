@@ -59,7 +59,7 @@ tag_type <- all |>
 
 
 ###############################################################
-# create a basic plot 
+# create a basic plot # figure 1 
 
 world <- ne_countries(scale = "medium", returnclass = "sf")
 Americas <- world %>% dplyr::filter(region_un == "Americas")
@@ -70,6 +70,34 @@ global <- ggplot(data = Americas) +
   geom_sf(data = allsf, size = 1, colour = "darkblue" ) + #aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
   scale_color_viridis_d(option = "magma",begin = 0.1)+
   #facet_wrap(~tag.id)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-180, -20), ylim = c(-60, 80), expand = FALSE)+
+  #coord_sf(xlim = c(-130, -60), ylim = c(15, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
+# create a subspecies plot 
+susp <- allsf %>%
+  dplyr::select(proj, date_time ) |> 
+  mutate(subspecies = case_when(
+    proj ==  "Johnson_GPS"  ~ "roselaari",
+    .default = "rufa"
+  ))
+
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+#Americas <- world %>% dplyr::filter(continent == "North America")
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = susp, size = 1, colour = "darkblue" ) + #aes(fill = movement_dir, colour = movement_dir))+#colour = "dark blue") +
+  scale_color_viridis_d(option = "magma",begin = 0.1)+
+  facet_wrap(~subspecies)+
   # geom_point(ru, aes(x = lng, y = lat), size = 4) +
   xlab("Longitude") + ylab("Latitude") +
   coord_sf(xlim = c(-180, -20), ylim = c(-60, 80), expand = FALSE)+
