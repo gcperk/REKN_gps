@@ -137,7 +137,7 @@ so <- so |>
 
 ### Write out for review 
 
-#write_sf(so, file.path(raw_dat, "stopover_summaries_testing.gpkg"), append = FALSE)
+write_sf(so, file.path(raw_dat, "stopover_summaries_oldversion.gpkg"), append = FALSE)
 #write_sf(stsf, file.path(raw_dat, "stopover_summaries_dirs.gpkg"))
 
 ## Get summary form min and max dates 
@@ -227,6 +227,11 @@ ggplot(move_dur) +
     legend.key.width = unit(3, "lines"),
     legend.title=element_blank()
   )
+
+
+
+
+
 
 # Geographic distributon of tags
 
